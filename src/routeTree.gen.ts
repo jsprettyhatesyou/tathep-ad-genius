@@ -9,61 +9,247 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as AppPipelineRouteImport } from './routes/_app.pipeline'
+import { Route as AppLeadFinderRouteImport } from './routes/_app.lead-finder'
+import { Route as AppInventoryRouteImport } from './routes/_app.inventory'
+import { Route as AppContactsRouteImport } from './routes/_app.contacts'
+import { Route as AppCompaniesRouteImport } from './routes/_app.companies'
+import { Route as AppCampaignsRouteImport } from './routes/_app.campaigns'
+import { Route as AppActivitiesRouteImport } from './routes/_app.activities'
+import { Route as AppLeadsImportRouteImport } from './routes/_app.leads.import'
 
-const IndexRoute = IndexRouteImport.update({
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPipelineRoute = AppPipelineRouteImport.update({
+  id: '/pipeline',
+  path: '/pipeline',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLeadFinderRoute = AppLeadFinderRouteImport.update({
+  id: '/lead-finder',
+  path: '/lead-finder',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppInventoryRoute = AppInventoryRouteImport.update({
+  id: '/inventory',
+  path: '/inventory',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppContactsRoute = AppContactsRouteImport.update({
+  id: '/contacts',
+  path: '/contacts',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCompaniesRoute = AppCompaniesRouteImport.update({
+  id: '/companies',
+  path: '/companies',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCampaignsRoute = AppCampaignsRouteImport.update({
+  id: '/campaigns',
+  path: '/campaigns',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppActivitiesRoute = AppActivitiesRouteImport.update({
+  id: '/activities',
+  path: '/activities',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLeadsImportRoute = AppLeadsImportRouteImport.update({
+  id: '/leads/import',
+  path: '/leads/import',
+  getParentRoute: () => AppRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof AppIndexRoute
+  '/activities': typeof AppActivitiesRoute
+  '/campaigns': typeof AppCampaignsRoute
+  '/companies': typeof AppCompaniesRoute
+  '/contacts': typeof AppContactsRoute
+  '/inventory': typeof AppInventoryRoute
+  '/lead-finder': typeof AppLeadFinderRoute
+  '/pipeline': typeof AppPipelineRoute
+  '/leads/import': typeof AppLeadsImportRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/activities': typeof AppActivitiesRoute
+  '/campaigns': typeof AppCampaignsRoute
+  '/companies': typeof AppCompaniesRoute
+  '/contacts': typeof AppContactsRoute
+  '/inventory': typeof AppInventoryRoute
+  '/lead-finder': typeof AppLeadFinderRoute
+  '/pipeline': typeof AppPipelineRoute
+  '/': typeof AppIndexRoute
+  '/leads/import': typeof AppLeadsImportRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_app': typeof AppRouteWithChildren
+  '/_app/activities': typeof AppActivitiesRoute
+  '/_app/campaigns': typeof AppCampaignsRoute
+  '/_app/companies': typeof AppCompaniesRoute
+  '/_app/contacts': typeof AppContactsRoute
+  '/_app/inventory': typeof AppInventoryRoute
+  '/_app/lead-finder': typeof AppLeadFinderRoute
+  '/_app/pipeline': typeof AppPipelineRoute
+  '/_app/': typeof AppIndexRoute
+  '/_app/leads/import': typeof AppLeadsImportRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/activities'
+    | '/campaigns'
+    | '/companies'
+    | '/contacts'
+    | '/inventory'
+    | '/lead-finder'
+    | '/pipeline'
+    | '/leads/import'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/activities'
+    | '/campaigns'
+    | '/companies'
+    | '/contacts'
+    | '/inventory'
+    | '/lead-finder'
+    | '/pipeline'
+    | '/'
+    | '/leads/import'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/_app/activities'
+    | '/_app/campaigns'
+    | '/_app/companies'
+    | '/_app/contacts'
+    | '/_app/inventory'
+    | '/_app/lead-finder'
+    | '/_app/pipeline'
+    | '/_app/'
+    | '/_app/leads/import'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/': {
+      id: '/_app/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/pipeline': {
+      id: '/_app/pipeline'
+      path: '/pipeline'
+      fullPath: '/pipeline'
+      preLoaderRoute: typeof AppPipelineRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/lead-finder': {
+      id: '/_app/lead-finder'
+      path: '/lead-finder'
+      fullPath: '/lead-finder'
+      preLoaderRoute: typeof AppLeadFinderRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/inventory': {
+      id: '/_app/inventory'
+      path: '/inventory'
+      fullPath: '/inventory'
+      preLoaderRoute: typeof AppInventoryRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/contacts': {
+      id: '/_app/contacts'
+      path: '/contacts'
+      fullPath: '/contacts'
+      preLoaderRoute: typeof AppContactsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/companies': {
+      id: '/_app/companies'
+      path: '/companies'
+      fullPath: '/companies'
+      preLoaderRoute: typeof AppCompaniesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/campaigns': {
+      id: '/_app/campaigns'
+      path: '/campaigns'
+      fullPath: '/campaigns'
+      preLoaderRoute: typeof AppCampaignsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/activities': {
+      id: '/_app/activities'
+      path: '/activities'
+      fullPath: '/activities'
+      preLoaderRoute: typeof AppActivitiesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/leads/import': {
+      id: '/_app/leads/import'
+      path: '/leads/import'
+      fullPath: '/leads/import'
+      preLoaderRoute: typeof AppLeadsImportRouteImport
+      parentRoute: typeof AppRoute
     }
   }
 }
 
+interface AppRouteChildren {
+  AppActivitiesRoute: typeof AppActivitiesRoute
+  AppCampaignsRoute: typeof AppCampaignsRoute
+  AppCompaniesRoute: typeof AppCompaniesRoute
+  AppContactsRoute: typeof AppContactsRoute
+  AppInventoryRoute: typeof AppInventoryRoute
+  AppLeadFinderRoute: typeof AppLeadFinderRoute
+  AppPipelineRoute: typeof AppPipelineRoute
+  AppIndexRoute: typeof AppIndexRoute
+  AppLeadsImportRoute: typeof AppLeadsImportRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppActivitiesRoute: AppActivitiesRoute,
+  AppCampaignsRoute: AppCampaignsRoute,
+  AppCompaniesRoute: AppCompaniesRoute,
+  AppContactsRoute: AppContactsRoute,
+  AppInventoryRoute: AppInventoryRoute,
+  AppLeadFinderRoute: AppLeadFinderRoute,
+  AppPipelineRoute: AppPipelineRoute,
+  AppIndexRoute: AppIndexRoute,
+  AppLeadsImportRoute: AppLeadsImportRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
