@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { StatCard } from "@/components/crm/stat-card";
 import { PageHeader } from "@/components/crm/page-header";
 import { AIPanel } from "@/components/crm/ai-panel";
-import { TierBadge, AIClassBadge, StageBadge } from "@/components/crm/badges";
+import { TierBadge, StageBadge } from "@/components/crm/badges";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DEALS, COMPANIES, ACTIVITIES, formatTHB, STAGES, getCompany } from "@/lib/mock-data";
