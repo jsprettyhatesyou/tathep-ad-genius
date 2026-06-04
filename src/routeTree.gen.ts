@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppPipelineRouteImport } from './routes/_app.pipeline'
+import { Route as AppContactsRouteImport } from './routes/_app.contacts'
 import { Route as AppCompaniesRouteImport } from './routes/_app.companies'
 
 const AppRoute = AppRouteImport.update({
@@ -28,6 +29,11 @@ const AppPipelineRoute = AppPipelineRouteImport.update({
   path: '/pipeline',
   getParentRoute: () => AppRoute,
 } as any)
+const AppContactsRoute = AppContactsRouteImport.update({
+  id: '/contacts',
+  path: '/contacts',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCompaniesRoute = AppCompaniesRouteImport.update({
   id: '/companies',
   path: '/companies',
@@ -37,10 +43,12 @@ const AppCompaniesRoute = AppCompaniesRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/companies': typeof AppCompaniesRoute
+  '/contacts': typeof AppContactsRoute
   '/pipeline': typeof AppPipelineRoute
 }
 export interface FileRoutesByTo {
   '/companies': typeof AppCompaniesRoute
+  '/contacts': typeof AppContactsRoute
   '/pipeline': typeof AppPipelineRoute
   '/': typeof AppIndexRoute
 }
@@ -48,15 +56,22 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/_app/companies': typeof AppCompaniesRoute
+  '/_app/contacts': typeof AppContactsRoute
   '/_app/pipeline': typeof AppPipelineRoute
   '/_app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/companies' | '/pipeline'
+  fullPaths: '/' | '/companies' | '/contacts' | '/pipeline'
   fileRoutesByTo: FileRoutesByTo
-  to: '/companies' | '/pipeline' | '/'
-  id: '__root__' | '/_app' | '/_app/companies' | '/_app/pipeline' | '/_app/'
+  to: '/companies' | '/contacts' | '/pipeline' | '/'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/_app/companies'
+    | '/_app/contacts'
+    | '/_app/pipeline'
+    | '/_app/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -86,6 +101,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPipelineRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/contacts': {
+      id: '/_app/contacts'
+      path: '/contacts'
+      fullPath: '/contacts'
+      preLoaderRoute: typeof AppContactsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/companies': {
       id: '/_app/companies'
       path: '/companies'
@@ -98,12 +120,14 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppCompaniesRoute: typeof AppCompaniesRoute
+  AppContactsRoute: typeof AppContactsRoute
   AppPipelineRoute: typeof AppPipelineRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppCompaniesRoute: AppCompaniesRoute,
+  AppContactsRoute: AppContactsRoute,
   AppPipelineRoute: AppPipelineRoute,
   AppIndexRoute: AppIndexRoute,
 }
