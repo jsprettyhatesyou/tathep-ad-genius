@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as AppPipelineRouteImport } from './routes/_app.pipeline'
 import { Route as AppCompaniesRouteImport } from './routes/_app.companies'
 
 const AppRoute = AppRouteImport.update({
@@ -22,6 +23,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppPipelineRoute = AppPipelineRouteImport.update({
+  id: '/pipeline',
+  path: '/pipeline',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCompaniesRoute = AppCompaniesRouteImport.update({
   id: '/companies',
   path: '/companies',
@@ -31,23 +37,26 @@ const AppCompaniesRoute = AppCompaniesRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/companies': typeof AppCompaniesRoute
+  '/pipeline': typeof AppPipelineRoute
 }
 export interface FileRoutesByTo {
   '/companies': typeof AppCompaniesRoute
+  '/pipeline': typeof AppPipelineRoute
   '/': typeof AppIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/_app/companies': typeof AppCompaniesRoute
+  '/_app/pipeline': typeof AppPipelineRoute
   '/_app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/companies'
+  fullPaths: '/' | '/companies' | '/pipeline'
   fileRoutesByTo: FileRoutesByTo
-  to: '/companies' | '/'
-  id: '__root__' | '/_app' | '/_app/companies' | '/_app/'
+  to: '/companies' | '/pipeline' | '/'
+  id: '__root__' | '/_app' | '/_app/companies' | '/_app/pipeline' | '/_app/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -70,6 +79,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/pipeline': {
+      id: '/_app/pipeline'
+      path: '/pipeline'
+      fullPath: '/pipeline'
+      preLoaderRoute: typeof AppPipelineRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/companies': {
       id: '/_app/companies'
       path: '/companies'
@@ -82,11 +98,13 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppCompaniesRoute: typeof AppCompaniesRoute
+  AppPipelineRoute: typeof AppPipelineRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppCompaniesRoute: AppCompaniesRoute,
+  AppPipelineRoute: AppPipelineRoute,
   AppIndexRoute: AppIndexRoute,
 }
 
