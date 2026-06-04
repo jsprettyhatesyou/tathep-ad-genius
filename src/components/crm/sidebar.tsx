@@ -17,7 +17,15 @@ import {
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
-const NAV = [
+type NavItem = {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  exact?: boolean;
+  ai?: boolean;
+};
+
+const NAV: NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/leads/import", label: "Import Leads", icon: Sparkles, ai: true },
   { to: "/lead-finder", label: "Lead Finder", icon: Search, ai: true },
@@ -27,7 +35,7 @@ const NAV = [
   { to: "/activities", label: "Activities", icon: Activity },
   { to: "/inventory", label: "Billboard Inventory", icon: Monitor },
   { to: "/campaigns", label: "Campaigns", icon: Megaphone },
-] as const;
+];
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
