@@ -1,22 +1,52 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/crm/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AIPanel } from "@/components/crm/ai-panel";
 import { TierBadge } from "@/components/crm/badges";
-import { CONTACTS, getCompany, formatTHB, DEALS } from "@/lib/mock-data";
-import { Plus, Search, MessageCircle, Phone, Mail, Users as UsersIcon, X } from "lucide-react";
+import { formatTHB, type Contact } from "@/lib/mock-data";
+import { listContacts, listCompanies, listDeals, deleteContact } from "@/lib/api/crm.functions";
+import { ContactDialog } from "@/components/crm/entity-dialogs";
+import { DeleteConfirm } from "@/components/crm/form-kit";
+import { Plus, Search, MessageCircle, Phone, Mail, Users as UsersIcon, X, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/contacts")({
   head: () => ({ meta: [{ title: "Contacts — Tathep CRM" }] }),
+  loader: async () => {
+    const [contacts, companies, deals] = await Promise.all([
+      listContacts(),
+      listCompanies(),
+      listDeals(),
+    ]);
+    return { contacts, companies, deals };
+  },
   component: ContactsPage,
 });
 
 function ContactsPage() {
+  const { contacts: CONTACTS, companies, deals: DEALS } = Route.useLoaderData();
+  const companyMap = new Map(companies.map((c) => [c.id, c]));
+  const getCompany = (id: string) => companyMap.get(id);
+  const router = useRouter();
+  const refresh = () => router.invalidate();
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<{ open: boolean; initial: Contact | null }>({ open: false, initial: null });
+
+  const removeContact = async (id: string) => {
+    try {
+      await deleteContact({ data: { id } });
+      toast.success("ลบผู้ติดต่อแล้ว");
+      setOpenId(null);
+      refresh();
+    } catch (e: any) {
+      toast.error(`ลบไม่สำเร็จ: ${e?.message ?? "error"}`);
+    }
+  };
+
   const rows = CONTACTS.filter((c) => !query || c.name.toLowerCase().includes(query.toLowerCase()));
   const selected = openId ? CONTACTS.find((c) => c.id === openId) : null;
   const company = selected ? getCompany(selected.companyId) : null;
@@ -27,7 +57,7 @@ function ContactsPage() {
       <PageHeader
         title="Contacts"
         subtitle={`${CONTACTS.length} people — decision makers, marketers & agency PMs`}
-        actions={<Button size="sm" className="bg-fresco hover:bg-fresco/90"><Plus className="h-4 w-4" /> New Contact</Button>}
+        actions={<Button size="sm" className="bg-fresco hover:bg-fresco/90" onClick={() => setDialog({ open: true, initial: null })}><Plus className="h-4 w-4" /> New Contact</Button>}
       />
 
       <div className="space-y-4 p-8">
@@ -103,7 +133,13 @@ function ContactsPage() {
                   <p className="text-xs text-muted-foreground">{selected.jobTitle} · {company?.name}</p>
                 </div>
               </div>
-              <button onClick={() => setOpenId(null)} className="rounded-lg p-2 hover:bg-slate-100"><X className="h-4 w-4" /></button>
+              <div className="flex items-center gap-1.5">
+                <Button variant="outline" size="sm" onClick={() => setDialog({ open: true, initial: selected })}>
+                  <Pencil className="h-4 w-4" /> แก้ไข
+                </Button>
+                <DeleteConfirm onConfirm={() => removeContact(selected.id)} description={`ลบผู้ติดต่อ "${selected.name}"`} />
+                <button onClick={() => setOpenId(null)} className="rounded-lg p-2 hover:bg-slate-100"><X className="h-4 w-4" /></button>
+              </div>
             </div>
 
             <div className="space-y-5 p-6">
@@ -143,6 +179,14 @@ function ContactsPage() {
           </div>
         </>
       )}
+
+      <ContactDialog
+        open={dialog.open}
+        initial={dialog.initial}
+        companies={companies}
+        onOpenChange={(o) => setDialog((s) => ({ ...s, open: o }))}
+        onSaved={refresh}
+      />
     </div>
   );
 }

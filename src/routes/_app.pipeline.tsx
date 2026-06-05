@@ -1,27 +1,59 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/crm/page-header";
 import { TierBadge, AIClassBadge, PriorityDot } from "@/components/crm/badges";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AIPanel } from "@/components/crm/ai-panel";
-import { DEALS, STAGES, STAGE_EMOJI, formatTHB, getCompany, type Deal, type Stage, SCREENS } from "@/lib/mock-data";
-import { Plus, Calendar, Filter, X, Building2 } from "lucide-react";
+import { STAGES, STAGE_EMOJI, formatTHB, type Deal, type Stage } from "@/lib/mock-data";
+import { listDeals, listCompanies, listScreens, listContacts, updateDealStage, deleteDeal } from "@/lib/api/crm.functions";
+import { DealDialog } from "@/components/crm/entity-dialogs";
+import { DeleteConfirm } from "@/components/crm/form-kit";
+import { generatePitch } from "@/lib/api/ai.functions";
+import { Plus, Calendar, Filter, X, Building2, Pencil } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/_app/pipeline")({
   head: () => ({ meta: [{ title: "Pipeline — Tathep CRM" }] }),
+  loader: async () => {
+    const [deals, companies, screens, contacts] = await Promise.all([
+      listDeals(),
+      listCompanies(),
+      listScreens(),
+      listContacts(),
+    ]);
+    return { deals, companies, screens, contacts };
+  },
   component: PipelinePage,
 });
 
 type View = "All" | "Hot" | "ThisWeek" | "Agency" | "Direct" | "Mine" | "Lost";
 
 function PipelinePage() {
-  const [deals, setDeals] = useState<Deal[]>(DEALS);
+  const { deals: loaderDeals, companies, contacts } = Route.useLoaderData();
+  const router = useRouter();
+  const refresh = () => router.invalidate();
+  const companyMap = new Map(companies.map((c) => [c.id, c]));
+  const getCompany = (id: string) => companyMap.get(id);
+  const [deals, setDeals] = useState<Deal[]>(loaderDeals);
+  useEffect(() => { setDeals(loaderDeals); }, [loaderDeals]);
   const [view, setView] = useState<View>("All");
   const [openDeal, setOpenDeal] = useState<Deal | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [dealDialog, setDealDialog] = useState<{ open: boolean; initial: Deal | null }>({ open: false, initial: null });
+
+  const removeDeal = async (id: string) => {
+    try {
+      await deleteDeal({ data: { id } });
+      toast.success("ลบดีลแล้ว");
+      setOpenDeal(null);
+      refresh();
+    } catch (e: any) {
+      toast.error(`ลบไม่สำเร็จ: ${e?.message ?? "error"}`);
+    }
+  };
 
   const filtered = deals.filter((d) => {
     if (view === "Hot") return d.aiClass === "Hot" || d.tier === "Platinum";
@@ -35,8 +67,20 @@ function PipelinePage() {
 
   const handleDrop = (stage: Stage) => {
     if (!dragId) return;
-    setDeals((ds) => ds.map((d) => (d.id === dragId ? { ...d, stage } : d)));
+    const id = dragId;
     setDragId(null);
+
+    const prev = deals.find((d) => d.id === id);
+    if (!prev || prev.stage === stage) return;
+
+    // optimistic update, then persist to Supabase
+    setDeals((ds) => ds.map((d) => (d.id === id ? { ...d, stage } : d)));
+    updateDealStage({ data: { id, stage } })
+      .then(() => toast.success(`ย้าย "${prev.name}" → ${stage}`))
+      .catch(() => {
+        setDeals((ds) => ds.map((d) => (d.id === id ? { ...d, stage: prev.stage } : d)));
+        toast.error("บันทึกไม่สำเร็จ — ย้อนกลับแล้ว");
+      });
   };
 
   const stagesToShow = STAGES.filter((s) => s !== "Lost" && s !== "On Hold");
@@ -49,7 +93,7 @@ function PipelinePage() {
         actions={
           <>
             <Button variant="outline" size="sm"><Filter className="h-4 w-4" /> Filters</Button>
-            <Button size="sm" className="bg-fresco hover:bg-fresco/90"><Plus className="h-4 w-4" /> New Deal</Button>
+            <Button size="sm" className="bg-fresco hover:bg-fresco/90" onClick={() => setDealDialog({ open: true, initial: null })}><Plus className="h-4 w-4" /> New Deal</Button>
           </>
         }
       />
@@ -126,14 +170,44 @@ function PipelinePage() {
         </Tabs>
       </div>
 
-      {openDeal && <DealSlideOver deal={openDeal} onClose={() => setOpenDeal(null)} />}
+      {openDeal && (
+        <DealSlideOver
+          deal={openDeal}
+          onClose={() => setOpenDeal(null)}
+          onEdit={() => { setDealDialog({ open: true, initial: openDeal }); setOpenDeal(null); }}
+          onDelete={() => removeDeal(openDeal.id)}
+        />
+      )}
+
+      <DealDialog
+        open={dealDialog.open}
+        initial={dealDialog.initial}
+        companies={companies}
+        contacts={contacts}
+        onOpenChange={(o) => setDealDialog((s) => ({ ...s, open: o }))}
+        onSaved={refresh}
+      />
     </div>
   );
 }
 
-function DealSlideOver({ deal, onClose }: { deal: Deal; onClose: () => void }) {
-  const company = getCompany(deal.companyId);
+function DealSlideOver({ deal, onClose, onEdit, onDelete }: { deal: Deal; onClose: () => void; onEdit: () => void; onDelete: () => void }) {
+  const { companies, screens: SCREENS } = Route.useLoaderData();
+  const company = companies.find((c) => c.id === deal.companyId);
   const [tab, setTab] = useState("research");
+  const [pitch, setPitch] = useState<{ pitch: string; objections: { objection: string; response: string }[]; talkingPoints: string[]; lineOpener: string } | null>(null);
+  const [pitchLoading, setPitchLoading] = useState(false);
+
+  const runPitch = async () => {
+    setPitchLoading(true);
+    try {
+      setPitch(await generatePitch({ data: { dealId: deal.id } }) as any);
+    } catch (e: any) {
+      toast.error(`น้องตาเทพคิดไม่ออก: ${e?.message ?? "error"}`);
+    } finally {
+      setPitchLoading(false);
+    }
+  };
 
   return (
     <>
@@ -147,7 +221,11 @@ function DealSlideOver({ deal, onClose }: { deal: Deal; onClose: () => void }) {
               <Building2 className="h-3 w-3" /> {company?.name}
             </p>
           </div>
-          <button onClick={onClose} className="rounded-lg p-2 hover:bg-slate-100"><X className="h-4 w-4" /></button>
+          <div className="flex items-center gap-1.5">
+            <Button variant="outline" size="sm" onClick={onEdit}><Pencil className="h-4 w-4" /> แก้ไข</Button>
+            <DeleteConfirm onConfirm={onDelete} description={`ลบดีล "${deal.name}"`} />
+            <button onClick={onClose} className="rounded-lg p-2 hover:bg-slate-100"><X className="h-4 w-4" /></button>
+          </div>
         </div>
 
         <div className="space-y-5 p-6">
@@ -216,28 +294,58 @@ function DealSlideOver({ deal, onClose }: { deal: Deal; onClose: () => void }) {
               </AIPanel>
             </TabsContent>
             <TabsContent value="strategy" className="mt-4">
-              <AIPanel subtitle="Suggested Pitch & Objection Handling" onGenerate={() => {}}>
-                <p className="font-medium text-fresco">Pitch angle:</p>
-                <p>เน้น "ยิงโฆษณาบนจอ LED แบบ Facebook Ads" — ลูกค้าเลือกเวลาและตำแหน่งได้เอง วัดผลจริง</p>
-                <p className="mt-3 font-medium text-fresco">Objection handling:</p>
-                <ul className="list-disc space-y-1 pl-4 text-xs">
-                  <li><b>"แพงไป"</b> — เริ่มได้จาก ฿250/15 วินาที, ทดสอบ 1 สัปดาห์ก่อน commit</li>
-                  <li><b>"ไม่รู้ว่าได้ผลไหม"</b> — มี AI dashboard + impression tracking real-time</li>
-                  <li><b>"คนไม่เห็น"</b> — Daily impression {company?.province === "ภูเก็ต" ? "168K+" : "142K+"} traffic จริง</li>
-                </ul>
+              <AIPanel
+                subtitle="Pitch & Objection Handling · น้องตาเทพ"
+                actionLabel={pitch ? "Regenerate" : "Generate"}
+                loading={pitchLoading}
+                onGenerate={runPitch}
+              >
+                {pitch ? (
+                  <>
+                    <p className="font-medium text-fresco">Pitch angle:</p>
+                    <p className="whitespace-pre-wrap">{pitch.pitch}</p>
+                    <p className="mt-3 font-medium text-fresco">Objection handling:</p>
+                    <ul className="list-disc space-y-1.5 pl-4 text-xs">
+                      {pitch.objections.map((o, i) => (
+                        <li key={i}><b>"{o.objection}"</b> — {o.response}</li>
+                      ))}
+                    </ul>
+                  </>
+                ) : (
+                  <p className="text-slate-600">กด "Generate" ให้น้องตาเทพร่าง pitch + วิธีรับมือข้อโต้แย้ง จากข้อมูลดีลและลูกค้าจริง</p>
+                )}
               </AIPanel>
             </TabsContent>
             <TabsContent value="talking" className="mt-4">
-              <AIPanel subtitle="Recommended Screens & Talking Points" onGenerate={() => {}}>
-                <p className="mb-2">Top recommended screens for this account:</p>
-                <ul className="space-y-1.5 text-xs">
-                  {SCREENS.slice(0, 3).map((s) => (
-                    <li key={s.id} className="flex items-center justify-between rounded-md bg-white/60 px-3 py-2">
-                      <span><b>{s.name}</b> · {s.province}</span>
-                      <span className="text-fresco font-medium">{formatTHB(s.rateDaily)}/day</span>
-                    </li>
-                  ))}
-                </ul>
+              <AIPanel
+                subtitle="Talking Points & LINE Opener · น้องตาเทพ"
+                actionLabel={pitch ? "Regenerate" : "Generate"}
+                loading={pitchLoading}
+                onGenerate={runPitch}
+              >
+                {pitch ? (
+                  <>
+                    <p className="font-medium text-fresco">Talking points:</p>
+                    <ul className="list-disc space-y-1 pl-4 text-xs">
+                      {pitch.talkingPoints.map((t, i) => <li key={i}>{t}</li>)}
+                    </ul>
+                    <p className="mt-3 font-medium text-fresco">เปิดทาง LINE:</p>
+                    <p className="rounded-md bg-white/60 px-3 py-2 text-xs italic">{pitch.lineOpener}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="mb-2 text-slate-600">จอที่ว่างแนะนำสำหรับลูกค้ารายนี้:</p>
+                    <ul className="space-y-1.5 text-xs">
+                      {SCREENS.slice(0, 3).map((s) => (
+                        <li key={s.id} className="flex items-center justify-between rounded-md bg-white/60 px-3 py-2">
+                          <span><b>{s.name}</b> · {s.province}</span>
+                          <span className="text-fresco font-medium">{formatTHB(s.rateDaily)}/day</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mt-2 text-xs text-slate-500">กด "Generate" ให้น้องตาเทพแนะนำ talking points + ข้อความเปิด LINE</p>
+                  </>
+                )}
               </AIPanel>
             </TabsContent>
           </Tabs>

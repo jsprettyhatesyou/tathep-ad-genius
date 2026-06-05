@@ -1,14 +1,28 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { useState } from "react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/crm/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ACTIVITIES, getCompany } from "@/lib/mock-data";
-import { Phone, Calendar, MessageCircle, Mail, Video, FileText, RotateCw, MapPin, Plus } from "lucide-react";
+import { listActivities, listCompanies, listContacts, listDeals, deleteActivity } from "@/lib/api/crm.functions";
+import { ActivityDialog } from "@/components/crm/entity-dialogs";
+import { DeleteConfirm } from "@/components/crm/form-kit";
+import type { Activity } from "@/lib/mock-data";
+import { Phone, Calendar, MessageCircle, Mail, Video, FileText, RotateCw, MapPin, Plus, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/activities")({
   head: () => ({ meta: [{ title: "Activities — Tathep CRM" }] }),
+  loader: async () => {
+    const [activities, companies, contacts, deals] = await Promise.all([
+      listActivities(),
+      listCompanies(),
+      listContacts(),
+      listDeals(),
+    ]);
+    return { activities, companies, contacts, deals };
+  },
   component: ActivitiesPage,
 });
 
@@ -25,6 +39,23 @@ const STATUS_CLS: Record<string, string> = {
 };
 
 function ActivitiesPage() {
+  const { activities: ACTIVITIES, companies, contacts, deals } = Route.useLoaderData();
+  const router = useRouter();
+  const refresh = () => router.invalidate();
+  const companyMap = new Map(companies.map((c) => [c.id, c]));
+  const getCompany = (id: string) => companyMap.get(id);
+  const [dialog, setDialog] = useState<{ open: boolean; initial: Activity | null }>({ open: false, initial: null });
+
+  const removeActivity = async (id: string) => {
+    try {
+      await deleteActivity({ data: { id } });
+      toast.success("ลบกิจกรรมแล้ว");
+      refresh();
+    } catch (e: any) {
+      toast.error(`ลบไม่สำเร็จ: ${e?.message ?? "error"}`);
+    }
+  };
+
   const today = ACTIVITIES.filter((a) => a.date.startsWith("2026-06-04"));
   const upcoming = ACTIVITIES.filter((a) => a.status === "Planned").sort((a, b) => a.date.localeCompare(b.date));
   const log = [...ACTIVITIES].filter((a) => a.status === "Done").sort((a, b) => b.date.localeCompare(a.date));
@@ -32,7 +63,7 @@ function ActivitiesPage() {
   return (
     <div>
       <PageHeader title="Activities" subtitle="Calls, meetings, LINE & site visits — ทุก touchpoint ของทีมขาย"
-        actions={<Button size="sm" className="bg-fresco hover:bg-fresco/90"><Plus className="h-4 w-4" /> Log Activity</Button>} />
+        actions={<Button size="sm" className="bg-fresco hover:bg-fresco/90" onClick={() => setDialog({ open: true, initial: null })}><Plus className="h-4 w-4" /> Log Activity</Button>} />
 
       <div className="p-8">
         <Tabs defaultValue="today">
@@ -60,7 +91,17 @@ function ActivitiesPage() {
                         <p className="mt-1 text-sm text-muted-foreground">{a.summary}</p>
                         <p className="mt-1 text-xs text-muted-foreground">{getCompany(a.companyId || "")?.name} · {a.assignedTo}</p>
                       </div>
-                      <p className="shrink-0 text-xs text-muted-foreground">{a.date.replace("T", " ")}</p>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <p className="text-xs text-muted-foreground">{a.date.replace("T", " ")}</p>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDialog({ open: true, initial: a })}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <DeleteConfirm
+                          onConfirm={() => removeActivity(a.id)}
+                          description={`ลบกิจกรรม "${a.title}"`}
+                          trigger={<Button variant="ghost" size="icon" className="h-7 w-7 text-rose-600"><Trash2 className="h-3.5 w-3.5" /></Button>}
+                        />
+                      </div>
                     </div>
                   );
                 })}
@@ -72,6 +113,16 @@ function ActivitiesPage() {
           ))}
         </Tabs>
       </div>
+
+      <ActivityDialog
+        open={dialog.open}
+        initial={dialog.initial}
+        companies={companies}
+        contacts={contacts}
+        deals={deals}
+        onOpenChange={(o) => setDialog((s) => ({ ...s, open: o }))}
+        onSaved={refresh}
+      />
     </div>
   );
 }

@@ -1,5 +1,7 @@
 // Realistic Thai mock data for Tathep CRM
 export type AccountType = "Direct Client" | "Agency";
+// Richer client classification — Tathep sells DOOH to direct advertisers AND agencies/partners.
+export type ClientType = "Direct Client" | "Agency" | "Partner" | "Influencer" | "Reseller" | "Internal";
 export type LeadTier = "Platinum" | "Gold" | "Silver" | "Bronze";
 export type AIClass = "Hot" | "Warm" | "Cold" | "Agency Upsell";
 export type Priority = "Urgent" | "High" | "Medium" | "Low";
@@ -52,10 +54,47 @@ export interface Company {
   assignedTo: string;
   lastActivity: string;
   website?: string;
+  phone?: string; // central / head-office line (e.g. 02 Bangkok landline) — AI pulls this first
   size: string;
   source: string;
   tags: string[];
   summary: string;
+  // Extended classification (DOOH direct advertisers vs agencies/partners)
+  clientType?: ClientType;
+  agencyType?: string; // only meaningful when clientType === "Agency"
+  partnerPotentialScore?: number; // 0-100 — strategic-partner value (agencies score higher)
+  estimatedAnnualMarketingBudget?: string;
+  numberOfBranches?: number;
+  facebookUrl?: string;
+  instagramUrl?: string;
+  linkedinUrl?: string;
+  tiktokUrl?: string;
+}
+
+// Raw, pre-qualification prospect. Convert → Account (Company) + Contact + Opportunity (Deal).
+export type LeadStatus = "New" | "Working" | "Qualified" | "Unqualified" | "Converted";
+export interface Lead {
+  id: string;
+  companyName: string;
+  contactName?: string;
+  jobTitle?: string;
+  phone?: string;
+  email?: string;
+  lineId?: string;
+  website?: string;
+  province?: string;
+  industry?: string;
+  clientType?: ClientType;
+  agencyType?: string;
+  source: string;
+  status: LeadStatus;
+  assignedTo?: string;
+  leadScore?: number;
+  aiClass?: AIClass;
+  estimatedBudget?: string;
+  notes?: string;
+  convertedCompanyId?: string;
+  createdAt?: string;
 }
 
 export interface Contact {
@@ -123,6 +162,166 @@ export interface Screen {
   dailyImpressions: number;
   audience: string[];
   hours: string;
+  ratePerSecond?: number;
+  code?: string;
+  address?: string;
+  lat?: number;
+  lng?: number;
+}
+
+export interface Campaign {
+  id: string;
+  name: string;
+  companyId: string;
+  status: "Draft" | "Active" | "Paused" | "Completed" | "Cancelled";
+  start: string;
+  end: string;
+  budget: number;
+  impressions: number;
+  cpm: number;
+  satisfaction: string;
+  renewal: number;
+  // Brand Activation fields
+  objective?: string;
+  screenIds?: string[];
+  influencerIds?: string[];
+  contentPieces?: number;
+  billboardReach?: number;
+  influencerViews?: number;
+  socialEngagement?: number;
+  storeVisits?: number;
+  qrScans?: number;
+  revenue?: number;
+  aiInsight?: string;
+  renewalReasons?: string[];
+  // Execution workflow (MVP — stored as JSON on the activation)
+  owner?: string;
+  notes?: string;
+  screensPlan?: ScreenPlan[];
+  influencersPlan?: InfluencerPlan[];
+  deliverables?: Deliverable[];
+  tasks?: CampaignTask[];
+  // Campaign type + performance
+  campaignType?: "INTERNAL_MARKETING" | "CLIENT_ACTIVATION";
+  performance?: PerformanceSummary;
+  influencerPerf?: InfluencerPerf[];
+  ads?: AdsRow[];
+}
+
+export interface PerformanceSummary {
+  doohReach?: number;
+  influencerReach?: number;
+  totalReach?: number;
+  socialEngagement?: number;
+  qrScans?: number;
+  clicks?: number;
+  leads?: number;
+  registrations?: number;
+  couponUsage?: number;
+  estimatedVisits?: number;
+  revenue?: number;
+  costPerLead?: number;
+  costPerRegistration?: number;
+  campaignScore?: number;
+}
+
+export interface InfluencerPerf {
+  id: string;
+  influencerId: string;
+  influencerName: string;
+  platform: string;
+  contentUrl?: string;
+  contentStatus?: string;
+  publishDate?: string;
+  views?: number;
+  likes?: number;
+  comments?: number;
+  shares?: number;
+  saves?: number;
+  clicks?: number;
+  qrScans?: number;
+  leads?: number;
+  registrations?: number;
+  couponUsage?: number;
+  estimatedVisits?: number;
+  revenue?: number;
+  cost?: number;
+  notes?: string;
+}
+
+export interface AdsRow {
+  id: string;
+  channel: string;
+  campaignName: string;
+  spend?: number;
+  impressions?: number;
+  reach?: number;
+  clicks?: number;
+  conversions?: number;
+  notes?: string;
+}
+
+export interface ScreenPlan {
+  id: string;
+  screenId: string;
+  screenName: string;
+  province: string;
+  bookingStartDate: string;
+  bookingEndDate: string;
+  status: string; // Planned / Booked / Live / Completed / Cancelled
+}
+
+export interface InfluencerPlan {
+  id: string;
+  influencerId: string;
+  name: string;
+  platform: string;
+  category: string;
+  province: string;
+  followerCount: number;
+  rate: string;
+  status: string; // To Contact ... Published / Completed
+}
+
+export interface Deliverable {
+  id: string;
+  influencerId: string;
+  influencerName: string;
+  type: string;
+  platform: string;
+  quantity: number;
+  dueDate: string;
+  publishDate: string;
+  status: string;
+  contentUrl: string;
+  notes: string;
+}
+
+export interface CampaignTask {
+  id: string;
+  title: string;
+  owner: string;
+  dueDate: string;
+  status: string; // Todo / In Progress / Waiting / Done / Blocked
+  priority: string; // Low / Medium / High / Urgent
+  relatedType: string;
+  relatedId: string;
+  notes: string;
+}
+
+export interface Influencer {
+  id: string;
+  name: string;
+  platform: string;
+  followers: number;
+  category: string;
+  province: string;
+  rateCard: string;
+  avgViews: number;
+  engagementRate: number;
+  contentStatus: string;
+  brandsWorkedWith: string[];
+  avatar?: string;
 }
 
 export const SCREENS: Screen[] = [

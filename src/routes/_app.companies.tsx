@@ -1,25 +1,89 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/crm/page-header";
 import { AIPanel } from "@/components/crm/ai-panel";
-import { TierBadge, AIClassBadge, StatusBadge, AccountTypeBadge, ScoreChip } from "@/components/crm/badges";
+import { TierBadge, AIClassBadge, StatusBadge, ClientTypeBadge, ScoreChip } from "@/components/crm/badges";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { COMPANIES, formatTHB, getCompany, CONTACTS, DEALS } from "@/lib/mock-data";
-import { Plus, Search, Filter, Building2, Globe, MapPin, X, Sparkles } from "lucide-react";
+import { formatTHB, type Company } from "@/lib/mock-data";
+import { listCompanies, listContacts, listDeals, deleteCompany, updateCompany } from "@/lib/api/crm.functions";
+import { generateStrategy, classifyLead } from "@/lib/api/ai.functions";
+import { CompanyDialog, ContactDialog, DealDialog } from "@/components/crm/entity-dialogs";
+import { DeleteConfirm } from "@/components/crm/form-kit";
+import { Plus, Search, Filter, Building2, Globe, MapPin, X, Sparkles, Pencil, UserPlus, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/companies")({
-  head: () => ({ meta: [{ title: "Companies — Tathep CRM" }] }),
+  head: () => ({ meta: [{ title: "Accounts — Tathep CRM" }] }),
+  loader: async () => {
+    const [companies, contacts, deals] = await Promise.all([
+      listCompanies(),
+      listContacts(),
+      listDeals(),
+    ]);
+    return { companies, contacts, deals };
+  },
   component: CompaniesPage,
 });
 
 const FILTERS = ["All", "Agencies Only", "Direct Clients", "Active Clients", "Prospects"] as const;
 
 function CompaniesPage() {
+  const { companies: COMPANIES, contacts: CONTACTS, deals: DEALS } = Route.useLoaderData();
+  const companyMap = new Map(COMPANIES.map((c) => [c.id, c]));
+  const getCompany = (id: string) => companyMap.get(id);
+  const router = useRouter();
+  const refresh = () => router.invalidate();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("All");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [companyDialog, setCompanyDialog] = useState<{ open: boolean; initial: Company | null }>({ open: false, initial: null });
+  const [contactDialog, setContactDialog] = useState<{ open: boolean; companyId?: string }>({ open: false });
+  const [dealDialog, setDealDialog] = useState<{ open: boolean; companyId?: string }>({ open: false });
+  const [aiStrategy, setAiStrategy] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [classifying, setClassifying] = useState(false);
+
+  // Reset AI output when switching companies
+  useEffect(() => { setAiStrategy(null); }, [selectedId]);
+
+  const removeCompany = async (id: string) => {
+    try {
+      await deleteCompany({ data: { id } });
+      toast.success("ลบบริษัทแล้ว");
+      setSelectedId(null);
+      refresh();
+    } catch (e: any) {
+      toast.error(`ลบไม่สำเร็จ: ${e?.message ?? "error"}`);
+    }
+  };
+
+  const runStrategy = async (companyId: string) => {
+    setAiLoading(true);
+    try {
+      const { strategy } = await generateStrategy({ data: { companyId } });
+      setAiStrategy(strategy);
+    } catch (e: any) {
+      toast.error(`น้องตาเทพคิดไม่ออก: ${e?.message ?? "error"}`);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const runClassify = async (companyId: string) => {
+    setClassifying(true);
+    try {
+      const r = await classifyLead({ data: { companyId } });
+      await updateCompany({ data: { id: companyId, patch: { tier: r.tier, aiClass: r.aiClass, leadScore: r.leadScore } } });
+      toast.success(`น้องตาเทพจัดระดับ: ${r.tier} · ${r.aiClass} · ${r.leadScore}/100`);
+      refresh();
+    } catch (e: any) {
+      toast.error(`จัดระดับไม่สำเร็จ: ${e?.message ?? "error"}`);
+    } finally {
+      setClassifying(false);
+    }
+  };
 
   const rows = COMPANIES.filter((c) => {
     if (filter === "Agencies Only" && c.type !== "Agency") return false;
@@ -35,9 +99,9 @@ function CompaniesPage() {
   return (
     <div>
       <PageHeader
-        title="Companies"
+        title="Accounts"
         subtitle={`${COMPANIES.length} accounts — Direct Clients & Agencies`}
-        actions={<Button size="sm" className="bg-fresco hover:bg-fresco/90"><Plus className="h-4 w-4" /> New Company</Button>}
+        actions={<Button size="sm" className="bg-fresco hover:bg-fresco/90" onClick={() => setCompanyDialog({ open: true, initial: null })}><Plus className="h-4 w-4" /> New Account</Button>}
       />
 
       <div className="space-y-4 p-8">
@@ -102,8 +166,8 @@ function CompaniesPage() {
                         <div className="font-medium text-foreground">{c.name}</div>
                       </div>
                     </td>
-                    <td className="px-4 py-3"><AccountTypeBadge type={c.type} /></td>
-                    <td className="px-4 py-3 text-muted-foreground">{c.industry}</td>
+                    <td className="px-4 py-3"><ClientTypeBadge value={c.clientType ?? c.type} /></td>
+                    <td className="px-4 py-3 text-muted-foreground">{c.agencyType || c.industry}</td>
                     <td className="px-4 py-3 text-muted-foreground">{c.province}</td>
                     <td className="px-4 py-3"><StatusBadge status={c.status} /></td>
                     <td className="px-4 py-3"><TierBadge tier={c.tier} /></td>
@@ -131,49 +195,92 @@ function CompaniesPage() {
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold">{selected.name}</h2>
-                  <div className="mt-0.5 flex items-center gap-2">
-                    <AccountTypeBadge type={selected.type} />
+                  <div className="mt-0.5 flex flex-wrap items-center gap-2">
+                    <ClientTypeBadge value={selected.clientType ?? selected.type} />
                     <StatusBadge status={selected.status} />
                     <TierBadge tier={selected.tier} />
                   </div>
                 </div>
               </div>
-              <button onClick={() => setSelectedId(null)} className="rounded-lg p-2 hover:bg-slate-100">
-                <X className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-1.5">
+                <Button variant="outline" size="sm" onClick={() => setCompanyDialog({ open: true, initial: selected })}>
+                  <Pencil className="h-4 w-4" /> แก้ไข
+                </Button>
+                <DeleteConfirm
+                  onConfirm={() => removeCompany(selected.id)}
+                  description={`ลบ "${selected.name}" และดีลที่เกี่ยวข้องทั้งหมด`}
+                />
+                <button onClick={() => setSelectedId(null)} className="rounded-lg p-2 hover:bg-slate-100">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
             <div className="space-y-5 p-6">
               <div className="grid grid-cols-2 gap-4 text-sm">
+                <Field label="Client Type" value={selected.clientType ?? selected.type} />
                 <Field label="Industry" value={selected.industry} />
-                <Field label="Sub-Type" value={selected.subType} />
+                {(selected.clientType ?? selected.type) === "Agency" && <Field label="Agency Type" value={selected.agencyType || "—"} />}
                 <Field label="Province" value={selected.province} icon={MapPin} />
-                <Field label="Size" value={selected.size} />
+                <Field label="Lead Score" value={`${selected.leadScore}/100`} />
+                <Field label="Tier" value={selected.tier} />
                 <Field label="Annual Budget" value={selected.annualBudget} />
-                <Field label="Lead Source" value={selected.source} />
+                {selected.estimatedAnnualMarketingBudget && <Field label="Marketing Budget (est.)" value={selected.estimatedAnnualMarketingBudget} />}
+                {typeof selected.partnerPotentialScore === "number" && <Field label="Partner Potential" value={`${selected.partnerPotentialScore}/100`} />}
+                {selected.numberOfBranches ? <Field label="Branches" value={String(selected.numberOfBranches)} /> : null}
+                <Field label="Owner" value={selected.assignedTo} />
+                {selected.phone && <Field label="เบอร์กลาง" value={selected.phone} icon={Phone} />}
                 {selected.website && <Field label="Website" value={selected.website} icon={Globe} />}
-                <Field label="Assigned To" value={selected.assignedTo} />
               </div>
 
-              <AIPanel subtitle="Company Summary" onGenerate={() => {}}>
+              {/* Social links */}
+              {(selected.facebookUrl || selected.instagramUrl || selected.linkedinUrl || selected.tiktokUrl) && (
+                <div>
+                  <p className="mb-1.5 text-xs uppercase tracking-wide text-muted-foreground">Social Links</p>
+                  <div className="flex flex-wrap gap-2">
+                    {([["Facebook", selected.facebookUrl], ["Instagram", selected.instagramUrl], ["LinkedIn", selected.linkedinUrl], ["TikTok", selected.tiktokUrl]] as const)
+                      .filter(([, url]) => !!url)
+                      .map(([name, url]) => (
+                        <a key={name} href={(url as string).startsWith("http") ? url : `https://${url}`} target="_blank" rel="noreferrer" className="rounded-md border border-border bg-white px-2.5 py-1 text-xs font-medium text-fresco hover:bg-fresco/5">{name}</a>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              <AIPanel
+                subtitle="Lead Classification"
+                actionLabel={classifying ? "กำลังจัดระดับ…" : "จัดระดับด้วย AI"}
+                loading={classifying}
+                onGenerate={() => runClassify(selected.id)}
+              >
                 <p>{selected.summary}</p>
                 <div className="mt-3 flex items-center gap-2">
+                  <TierBadge tier={selected.tier} />
                   <AIClassBadge value={selected.aiClass} />
                   <span className="text-xs text-slate-500">· Lead Score {selected.leadScore}/100</span>
                 </div>
               </AIPanel>
 
-              <AIPanel subtitle="Recommended Strategy" onGenerate={() => {}}>
-                <ol className="list-decimal space-y-1.5 pl-4">
-                  <li>เริ่ม pitch ด้วย DOOH-as-ads angle, เน้นการ "เลือกเวลา" ตอนช่วง peak ของแบรนด์</li>
-                  <li>แนะนำ bundle 2 screens ในจังหวัด {selected.province} + 1 screen ใน กทม.</li>
-                  <li>เสนอ test campaign 1 สัปดาห์ก่อน commit รายเดือน — ลด barrier</li>
-                  <li>ต่อยอดด้วย AI Analytics Dashboard เป็น value-add</li>
-                </ol>
+              <AIPanel
+                subtitle="Sales Strategy · น้องตาเทพ"
+                actionLabel={aiStrategy ? "Regenerate" : "Generate"}
+                loading={aiLoading}
+                onGenerate={() => runStrategy(selected.id)}
+              >
+                {aiStrategy ? (
+                  <div className="whitespace-pre-wrap leading-relaxed">{aiStrategy}</div>
+                ) : (
+                  <p className="text-slate-600">กด "Generate" ให้น้องตาเทพวางกลยุทธ์การขายเฉพาะรายนี้ จากข้อมูลบริษัท ผู้ติดต่อ และดีลจริงในระบบ</p>
+                )}
               </AIPanel>
 
               <div>
-                <h3 className="mb-2 text-sm font-semibold text-foreground">Contacts</h3>
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-foreground">Contacts</h3>
+                  <Button variant="outline" size="sm" onClick={() => setContactDialog({ open: true, companyId: selected.id })}>
+                    <UserPlus className="h-4 w-4" /> เพิ่มผู้ติดต่อ
+                  </Button>
+                </div>
                 <div className="space-y-2">
                   {CONTACTS.filter((c) => c.companyId === selected.id).map((c) => (
                     <Card key={c.id} className="p-3 text-sm shadow-soft">
@@ -193,7 +300,12 @@ function CompaniesPage() {
               </div>
 
               <div>
-                <h3 className="mb-2 text-sm font-semibold text-foreground">Related Deals</h3>
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-foreground">Related Deals</h3>
+                  <Button variant="outline" size="sm" onClick={() => setDealDialog({ open: true, companyId: selected.id })}>
+                    <Plus className="h-4 w-4" /> สร้างดีล
+                  </Button>
+                </div>
                 <div className="space-y-2">
                   {DEALS.filter((d) => d.companyId === selected.id).map((d) => (
                     <Card key={d.id} className="flex items-center justify-between p-3 text-sm shadow-soft">
@@ -210,11 +322,35 @@ function CompaniesPage() {
                 </div>
               </div>
 
-              <Button className="w-full bg-fresco hover:bg-fresco/90"><Sparkles className="h-4 w-4" /> Generate Full Strategy with น้องตาเทพ</Button>
+              <Button className="w-full bg-fresco hover:bg-fresco/90" disabled={aiLoading} onClick={() => runStrategy(selected.id)}>
+                <Sparkles className="h-4 w-4" /> {aiLoading ? "น้องตาเทพกำลังคิด…" : "Generate Full Strategy with น้องตาเทพ"}
+              </Button>
             </div>
           </div>
         </>
       )}
+
+      <CompanyDialog
+        open={companyDialog.open}
+        initial={companyDialog.initial}
+        onOpenChange={(o) => setCompanyDialog((s) => ({ ...s, open: o }))}
+        onSaved={refresh}
+      />
+      <ContactDialog
+        open={contactDialog.open}
+        companies={COMPANIES}
+        defaultCompanyId={contactDialog.companyId}
+        onOpenChange={(o) => setContactDialog((s) => ({ ...s, open: o }))}
+        onSaved={refresh}
+      />
+      <DealDialog
+        open={dealDialog.open}
+        companies={COMPANIES}
+        contacts={CONTACTS}
+        defaultCompanyId={dealDialog.companyId}
+        onOpenChange={(o) => setDealDialog((s) => ({ ...s, open: o }))}
+        onSaved={refresh}
+      />
     </div>
   );
 }

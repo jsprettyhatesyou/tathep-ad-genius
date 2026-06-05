@@ -5,7 +5,8 @@ import { AIPanel } from "@/components/crm/ai-panel";
 import { TierBadge, StageBadge } from "@/components/crm/badges";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DEALS, COMPANIES, ACTIVITIES, formatTHB, STAGES, getCompany } from "@/lib/mock-data";
+import { formatTHB, STAGES } from "@/lib/mock-data";
+import { listDeals, listCompanies, listActivities } from "@/lib/api/crm.functions";
 import {
   Wallet, TrendingUp, Trophy, Target, UserPlus, Users,
   Phone, Calendar, MessageCircle, Mail, Plus
@@ -17,10 +18,21 @@ import {
 
 export const Route = createFileRoute("/_app/")({
   head: () => ({ meta: [{ title: "Dashboard — Tathep CRM" }] }),
+  loader: async () => {
+    const [deals, companies, activities] = await Promise.all([
+      listDeals(),
+      listCompanies(),
+      listActivities(),
+    ]);
+    return { deals, companies, activities };
+  },
   component: Dashboard,
 });
 
 function Dashboard() {
+  const { deals: DEALS, companies: COMPANIES, activities: ACTIVITIES } = Route.useLoaderData();
+  const companyMap = new Map(COMPANIES.map((c) => [c.id, c]));
+  const getCompany = (id: string) => companyMap.get(id);
   const openDeals = DEALS.filter((d) => !["Won", "Lost"].includes(d.stage));
   const wonThisMonth = DEALS.filter((d) => d.stage === "Won");
   const pipelineValue = openDeals.reduce((s, d) => s + d.value, 0);
@@ -53,7 +65,6 @@ function Dashboard() {
     <div>
       <PageHeader
         title="Sales Dashboard"
-        subtitle="ภาพรวมการขาย Smart DOOH วันนี้ — สวัสดี ปิยะ 👋"
         actions={
           <>
             <Button variant="outline" size="sm">Export</Button>

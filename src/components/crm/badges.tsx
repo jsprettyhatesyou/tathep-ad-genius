@@ -67,6 +67,24 @@ export function AccountTypeBadge({ type }: { type: "Direct Client" | "Agency" })
   );
 }
 
+export function ClientTypeBadge({ value }: { value?: string }) {
+  const map: Record<string, { icon: string; cls: string }> = {
+    "Direct Client": { icon: "🎯", cls: "bg-fresco/10 text-fresco ring-cyan-200" },
+    Agency: { icon: "🏢", cls: "bg-indigo-50 text-indigo-700 ring-indigo-200" },
+    Partner: { icon: "🤝", cls: "bg-violet-50 text-violet-700 ring-violet-200" },
+    Influencer: { icon: "⭐", cls: "bg-pink-50 text-pink-700 ring-pink-200" },
+    Reseller: { icon: "🔁", cls: "bg-amber-50 text-amber-700 ring-amber-200" },
+    Internal: { icon: "🏠", cls: "bg-slate-100 text-slate-700 ring-slate-200" },
+  };
+  const v = value || "Direct Client";
+  const { icon, cls } = map[v] ?? map["Direct Client"];
+  return (
+    <span className={cn("inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset", cls)}>
+      <span>{icon}</span> {v}
+    </span>
+  );
+}
+
 export function StageBadge({ stage }: { stage: Stage }) {
   const colors: Record<Stage, string> = {
     "New Lead": "bg-slate-100 text-slate-700",
