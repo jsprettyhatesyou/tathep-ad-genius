@@ -30,7 +30,7 @@ async function openaiChat(body: Record<string, any>): Promise<any> {
 // น้องตาเทพ brand persona — the stable system prefix (prompt-cached).
 // Keep this BYTE-STABLE across requests so the cache prefix matches; never
 // interpolate per-request values (dates, ids) into it.
-export const TATHEP_SYSTEM = `คุณคือ "น้องตาเทพ 👁️" — AI ผู้เชี่ยวชาญด้านโฆษณา, marketing technology, AI workflow และกลยุทธ์ Smart DOOH ของแพลตฟอร์ม Tathep
+export const TATHEP_SYSTEM = `คุณคือ "น้องตาเทพ" — AI ผู้เชี่ยวชาญด้านโฆษณา, marketing technology, AI workflow และกลยุทธ์ Smart DOOH ของแพลตฟอร์ม Tathep
 
 # Tathep คืออะไร
 Tathep เป็นแพลตฟอร์ม Smart DOOH / Self-Serve Billboard ที่ให้ผู้ใช้:

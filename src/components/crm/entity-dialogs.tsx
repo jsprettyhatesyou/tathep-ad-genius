@@ -50,6 +50,15 @@ import {
   INF_CONTENT_STATUS,
   CAMPAIGN_OBJECTIVES,
   LEAD_STATUSES,
+  DEAL_LEAD_SOURCES,
+  PAYMENT_METHODS,
+  PAYMENT_STATUSES,
+  REVENUE_TYPES,
+  DEAL_CAMPAIGN_STATUSES,
+  CREATIVE_STATUSES,
+  LOST_REASONS,
+  SCREEN_INVENTORY,
+  CONTRACT_TYPES,
 } from "@/lib/crm-options";
 import {
   createCompany,
@@ -114,7 +123,7 @@ async function run(fn: () => Promise<unknown>, onDone: () => void, setSaving: (v
   setSaving(true);
   try {
     await fn();
-    toast.success("บันทึกเรียบร้อย ✅");
+    toast.success("บันทึกเรียบร้อย");
     onDone();
   } catch (e: any) {
     toast.error(`บันทึกไม่สำเร็จ: ${e?.message ?? "error"}`);
@@ -289,7 +298,7 @@ function DealForm({ open, onOpenChange, onSaved, initial, companies, contacts, d
   const [f, setF] = useState<Partial<Deal>>(
     initial ?? {
       name: "", companyId: defaultCompanyId ?? "", contactId: "", clientType: "Direct Client",
-      stage: "New Lead", value: 0, tier: "Bronze", aiClass: "Cold", priority: "Medium",
+      stage: "Lead", value: 0, tier: "Bronze", aiClass: "Cold", priority: "Medium",
       campaignType: "Brand Awareness", duration: "1 Month", probability: 20,
       expectedClose: "", nextFollowUp: "", notes: "", screens: [],
     },
@@ -323,12 +332,23 @@ function DealForm({ open, onOpenChange, onSaved, initial, companies, contacts, d
       <NumberField label="มูลค่า (THB)" value={f.value ?? 0} onChange={(v) => set("value", v)} />
       <NumberField label="Probability (%)" value={f.probability ?? 0} onChange={(v) => set("probability", v)} />
       <SelectField label="Tier" value={f.tier ?? ""} onChange={(v) => set("tier", v)} options={LEAD_TIERS} />
-      <SelectField label="AI Class" value={f.aiClass ?? ""} onChange={(v) => set("aiClass", v)} options={AI_CLASSES} />
       <SelectField label="Priority" value={f.priority ?? ""} onChange={(v) => set("priority", v)} options={PRIORITIES} />
       <SelectField label="ประเภทแคมเปญ" value={f.campaignType ?? ""} onChange={(v) => set("campaignType", v)} options={CAMPAIGN_TYPES} />
       <SelectField label="ระยะเวลา" value={f.duration ?? ""} onChange={(v) => set("duration", v)} options={DURATIONS} />
+      <SelectField label="Lead Source" value={f.leadSource ?? ""} onChange={(v) => set("leadSource", v)} options={DEAL_LEAD_SOURCES} />
+      <SelectField label="Payment Method" value={f.paymentMethod ?? ""} onChange={(v) => set("paymentMethod", v)} options={PAYMENT_METHODS} />
+      <SelectField label="Payment Status" value={f.paymentStatus ?? ""} onChange={(v) => set("paymentStatus", v)} options={PAYMENT_STATUSES} />
+      <SelectField label="Revenue Type" value={f.revenueType ?? ""} onChange={(v) => set("revenueType", v)} options={REVENUE_TYPES} />
+      <SelectField label="Campaign Status" value={f.campaignStatus ?? ""} onChange={(v) => set("campaignStatus", v)} options={DEAL_CAMPAIGN_STATUSES} />
+      <SelectField label="Creative Status" value={f.creativeStatus ?? ""} onChange={(v) => set("creativeStatus", v)} options={CREATIVE_STATUSES} />
+      <SelectField label="Contract Type" value={f.contractType ?? ""} onChange={(v) => set("contractType", v)} options={CONTRACT_TYPES} />
+      <SelectField label="Lost Reason" value={f.lostReason ?? ""} onChange={(v) => set("lostReason", v)} options={LOST_REASONS} />
       <TextField label="คาดว่าปิด (YYYY-MM-DD)" type="date" value={f.expectedClose ?? ""} onChange={(v) => set("expectedClose", v)} />
       <TextField label="ติดตามครั้งถัดไป" type="date" value={f.nextFollowUp ?? ""} onChange={(v) => set("nextFollowUp", v)} />
+      <div className="sm:col-span-2">
+        <label className="mb-1 block text-xs font-medium text-muted-foreground">Screen Inventory (ป้าย)</label>
+        <MultiSelect label="เลือกป้าย" options={SCREEN_INVENTORY} selected={f.screens ?? []} onChange={(v) => set("screens", v)} />
+      </div>
       <TextareaField label="Notes" value={f.notes ?? ""} onChange={(v) => set("notes", v)} className="sm:col-span-2" />
     </Shell>
   );
@@ -516,7 +536,7 @@ function CampaignForm({ open, onOpenChange, onSaved, initial, companies, screens
       <div className="sm:col-span-2"><label className="mb-1 block text-xs font-medium text-muted-foreground">Screens (ป้าย)</label><MultiSelect label="เลือกป้าย" options={screenOpts} selected={f.screenIds ?? []} onChange={(v) => set("screenIds", v)} /></div>
       <div className="sm:col-span-2"><label className="mb-1 block text-xs font-medium text-muted-foreground">Influencers</label><MultiSelect label="เลือก influencer" options={infOpts} selected={f.influencerIds ?? []} onChange={(v) => set("influencerIds", v)} /></div>
       <TextareaField label="Notes" value={f.notes ?? ""} onChange={(v) => set("notes", v)} className="sm:col-span-2" />
-      {!initial && <p className="sm:col-span-2 text-xs text-muted-foreground">✨ ระบบจะสร้าง task เริ่มต้น 13 ขั้น + booking plan ของป้าย/influencer ให้อัตโนมัติ</p>}
+      {!initial && <p className="sm:col-span-2 text-xs text-muted-foreground">ระบบจะสร้าง task เริ่มต้น 13 ขั้น + booking plan ของป้าย/influencer ให้อัตโนมัติ</p>}
     </Shell>
   );
 }
@@ -654,7 +674,7 @@ export function ConvertLeadDialog({
           dealValue: createOpp ? dealValue : undefined,
         },
       });
-      toast.success(`แปลง "${lead.companyName}" เป็น Account สำเร็จ ✅`);
+      toast.success(`แปลง "${lead.companyName}" เป็น Account สำเร็จ`);
       onConverted(res.companyId);
     } catch (e: any) {
       toast.error(`Convert ไม่สำเร็จ: ${e?.message ?? "error"}`);
@@ -673,13 +693,11 @@ export function ConvertLeadDialog({
           {/* What will be created */}
           <div className="rounded-lg border border-fresco/20 bg-fresco/5 p-3 text-sm space-y-1.5">
             <p className="font-semibold text-fresco">จะสร้างให้อัตโนมัติ:</p>
-            <p className="flex items-center gap-2 text-foreground">
-              <span className="text-lg">🏢</span>
+            <p className="text-foreground">
               <span>Account — <strong>{lead.companyName}</strong></span>
             </p>
             {lead.contactName && (
-              <p className="flex items-center gap-2 text-foreground">
-                <span className="text-lg">👤</span>
+              <p className="text-foreground">
                 <span>Contact — <strong>{lead.contactName}</strong>{lead.jobTitle ? ` (${lead.jobTitle})` : ""}</span>
               </p>
             )}
@@ -695,7 +713,7 @@ export function ConvertLeadDialog({
             />
             <div>
               <p className="text-sm font-medium">สร้าง Opportunity ด้วย</p>
-              <p className="text-xs text-muted-foreground">ระบบจะสร้าง deal ใน Pipeline ที่ stage Qualifying</p>
+              <p className="text-xs text-muted-foreground">ระบบจะสร้าง deal ใน Pipeline ที่ stage Qualified</p>
             </div>
           </label>
 

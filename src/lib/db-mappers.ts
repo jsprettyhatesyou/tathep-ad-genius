@@ -10,6 +10,7 @@ import type {
   Campaign,
   Influencer,
   Lead,
+  DealDocument,
 } from "./mock-data";
 
 /* ---------- DB row -> app object (read path) ---------- */
@@ -59,6 +60,7 @@ export const rowToCompany = (r: any): Company => ({
   source: r.source,
   tags: r.tags ?? [],
   summary: r.summary,
+  salesStrategy: r.sales_strategy ?? undefined,
   clientType: r.client_type ?? r.type ?? undefined,
   agencyType: r.agency_type ?? undefined,
   partnerPotentialScore: r.partner_potential_score ?? undefined,
@@ -83,6 +85,7 @@ export const rowToContact = (r: any): Contact => ({
   status: r.status,
   lastContacted: r.last_contacted,
   assignedTo: r.assigned_to,
+  createdAt: r.created_at ?? undefined,
 });
 
 export const rowToScreen = (r: any): Screen => ({
@@ -125,6 +128,38 @@ export const rowToDeal = (r: any): Deal => ({
   probability: r.probability ?? 0,
   nextFollowUp: r.next_follow_up,
   notes: r.notes ?? "",
+  leadSource: r.lead_source ?? undefined,
+  paymentMethod: r.payment_method ?? undefined,
+  paymentStatus: r.payment_status ?? undefined,
+  revenueType: r.revenue_type ?? undefined,
+  campaignStatus: r.campaign_status ?? undefined,
+  creativeStatus: r.creative_status ?? undefined,
+  lostReason: r.lost_reason ?? undefined,
+  contractType: r.contract_type ?? undefined,
+});
+
+export const rowToDocument = (r: any): DealDocument => ({
+  id: r.id,
+  dealId: r.deal_id,
+  companyId: r.company_id,
+  contactId: r.contact_id ?? undefined,
+  type: r.type,
+  docNumber: r.doc_number,
+  status: r.status ?? "Draft",
+  issueDate: r.issue_date ?? "",
+  dueDate: r.due_date ?? undefined,
+  lineItems: r.line_items ?? [],
+  subtotal: Number(r.subtotal ?? 0),
+  discount: Number(r.discount ?? 0),
+  vatRate: Number(r.vat_rate ?? 0),
+  vatAmount: Number(r.vat_amount ?? 0),
+  total: Number(r.total ?? 0),
+  currency: r.currency ?? "THB",
+  notes: r.notes ?? undefined,
+  terms: r.terms ?? undefined,
+  recipientEmail: r.recipient_email ?? undefined,
+  sentAt: r.sent_at ?? undefined,
+  createdAt: r.created_at ?? undefined,
 });
 
 export const rowToCampaign = (r: any): Campaign => ({
@@ -246,6 +281,7 @@ export const companyToRow = (c: Partial<Company>) =>
     source: c.source,
     tags: c.tags,
     summary: c.summary,
+    sales_strategy: c.salesStrategy,
     phone: c.phone,
     client_type: c.clientType,
     agency_type: c.agencyType,
@@ -316,6 +352,38 @@ export const dealToRow = (d: Partial<Deal>) =>
     probability: d.probability,
     next_follow_up: d.nextFollowUp,
     notes: d.notes,
+    lead_source: d.leadSource,
+    payment_method: d.paymentMethod,
+    payment_status: d.paymentStatus,
+    revenue_type: d.revenueType,
+    campaign_status: d.campaignStatus,
+    creative_status: d.creativeStatus,
+    lost_reason: d.lostReason,
+    contract_type: d.contractType,
+  });
+
+export const documentToRow = (d: Partial<DealDocument>) =>
+  clean({
+    id: d.id,
+    deal_id: d.dealId,
+    company_id: d.companyId,
+    contact_id: d.contactId,
+    type: d.type,
+    doc_number: d.docNumber,
+    status: d.status,
+    issue_date: d.issueDate,
+    due_date: d.dueDate,
+    line_items: d.lineItems,
+    subtotal: d.subtotal,
+    discount: d.discount,
+    vat_rate: d.vatRate,
+    vat_amount: d.vatAmount,
+    total: d.total,
+    currency: d.currency,
+    notes: d.notes,
+    terms: d.terms,
+    recipient_email: d.recipientEmail,
+    sent_at: d.sentAt,
   });
 
 export const campaignToRow = (c: Partial<Campaign>) =>

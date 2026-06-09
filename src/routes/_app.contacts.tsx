@@ -6,35 +6,51 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AIPanel } from "@/components/crm/ai-panel";
 import { TierBadge } from "@/components/crm/badges";
-import { formatTHB, type Contact } from "@/lib/mock-data";
-import { listContacts, listCompanies, listDeals, deleteContact } from "@/lib/api/crm.functions";
+import { formatTHB2, type Contact } from "@/lib/mock-data";
+import { listContacts, listCompanies, listDeals, listActivities, deleteContact, deleteContacts } from "@/lib/api/crm.functions";
 import { ContactDialog } from "@/components/crm/entity-dialogs";
 import { DeleteConfirm } from "@/components/crm/form-kit";
-import { Plus, Search, MessageCircle, Phone, Mail, Users as UsersIcon, X, Pencil } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import { Plus, Search, MessageCircle, Phone, Mail, X, Pencil, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/contacts")({
   head: () => ({ meta: [{ title: "Contacts — Tathep CRM" }] }),
   loader: async () => {
-    const [contacts, companies, deals] = await Promise.all([
+    const [contacts, companies, deals, activities] = await Promise.all([
       listContacts(),
       listCompanies(),
       listDeals(),
+      listActivities(),
     ]);
-    return { contacts, companies, deals };
+    return { contacts, companies, deals, activities };
   },
   component: ContactsPage,
 });
 
+// "YYYY-MM-DD" from an ISO-ish string, else "".
+const toDate = (s?: string) => (s && /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : "");
+
 function ContactsPage() {
-  const { contacts: CONTACTS, companies, deals: DEALS } = Route.useLoaderData();
+  const { contacts: CONTACTS, companies, deals: DEALS, activities } = Route.useLoaderData();
   const companyMap = new Map(companies.map((c) => [c.id, c]));
   const getCompany = (id: string) => companyMap.get(id);
+
+  // Latest real activity date per contact (activities.date is ISO datetime).
+  const lastActivityByContact = new Map<string, string>();
+  for (const a of activities) {
+    if (!a.contactId || !a.date) continue;
+    const cur = lastActivityByContact.get(a.contactId);
+    if (!cur || a.date > cur) lastActivityByContact.set(a.contactId, a.date);
+  }
+  const lastActivityDate = (c: Contact) =>
+    toDate(lastActivityByContact.get(c.id)) || toDate(c.createdAt) || "—";
   const router = useRouter();
   const refresh = () => router.invalidate();
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<{ open: boolean; initial: Contact | null }>({ open: false, initial: null });
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const removeContact = async (id: string) => {
     try {
@@ -47,16 +63,62 @@ function ContactsPage() {
     }
   };
 
-  const rows = CONTACTS.filter((c) => !query || c.name.toLowerCase().includes(query.toLowerCase()));
+  const rows = CONTACTS.filter((c) => {
+    if (!query) return true;
+    const q = query.toLowerCase();
+    return (
+      c.name.toLowerCase().includes(q) ||
+      (c.jobTitle ?? "").toLowerCase().includes(q) ||
+      (getCompany(c.companyId)?.name ?? "").toLowerCase().includes(q)
+    );
+  })
+    .slice()
+    .sort((a, b) => {
+      const ca = getCompany(a.companyId)?.name ?? "";
+      const cb = getCompany(b.companyId)?.name ?? "";
+      return ca.localeCompare(cb, "th") || a.name.localeCompare(b.name, "th");
+    });
   const selected = openId ? CONTACTS.find((c) => c.id === openId) : null;
   const company = selected ? getCompany(selected.companyId) : null;
   const deals = selected ? DEALS.filter((d) => d.contactId === selected.id) : [];
+
+  // ---- bulk selection ----
+  const allVisibleSelected = rows.length > 0 && rows.every((c) => selectedIds.has(c.id));
+  const someSelected = selectedIds.size > 0 && !allVisibleSelected;
+  const toggleOne = (id: string) =>
+    setSelectedIds((prev) => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  const toggleAll = () =>
+    setSelectedIds((prev) => {
+      const n = new Set(prev);
+      if (allVisibleSelected) rows.forEach((c) => n.delete(c.id));
+      else rows.forEach((c) => n.add(c.id));
+      return n;
+    });
+  const clearSel = () => setSelectedIds(new Set());
+
+  const bulkDelete = async () => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    if (!confirm(`ลบผู้ติดต่อ ${ids.length} รายการที่เลือก?`)) return;
+    try {
+      await deleteContacts({ data: { ids } });
+      toast.success(`ลบ ${ids.length} รายการแล้ว`);
+      clearSel();
+      refresh();
+    } catch (e: any) {
+      toast.error(`ลบไม่สำเร็จ: ${e?.message ?? "error"}`);
+    }
+  };
 
   return (
     <div>
       <PageHeader
         title="Contacts"
-        subtitle={`${CONTACTS.length} people — decision makers, marketers & agency PMs`}
+        subtitle={`${CONTACTS.length} people`}
         actions={<Button size="sm" className="bg-fresco hover:bg-fresco/90" onClick={() => setDialog({ open: true, initial: null })}><Plus className="h-4 w-4" /> New Contact</Button>}
       />
 
@@ -73,44 +135,53 @@ function ContactsPage() {
           </div>
         </Card>
 
+        {selectedIds.size > 0 && (
+          <div className="flex items-center justify-between rounded-lg border border-rose-200 bg-rose-50/60 px-4 py-2.5">
+            <span className="text-sm font-medium text-rose-700">เลือก {selectedIds.size} รายการ</span>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={clearSel}>ยกเลิก</Button>
+              <Button size="sm" className="bg-rose-600 text-white hover:bg-rose-700" onClick={bulkDelete}>
+                <Trash2 className="h-4 w-4" /> ลบที่เลือก ({selectedIds.size})
+              </Button>
+            </div>
+          </div>
+        )}
+
         <Card className="overflow-hidden shadow-soft">
-          <table className="w-full text-sm">
+          <table className="w-full table-fixed text-sm">
             <thead>
-              <tr className="border-b border-border bg-slate-50/60 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Company</th>
-                <th className="px-4 py-3">Title</th>
-                <th className="px-4 py-3">Role</th>
-                <th className="px-4 py-3">LINE</th>
-                <th className="px-4 py-3">Phone</th>
-                <th className="px-4 py-3">Preferred</th>
-                <th className="px-4 py-3">Last Contacted</th>
-                <th className="px-4 py-3">Owner</th>
+              <tr className="border-b border-border bg-slate-50/60 text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                <th className="w-10 px-3 py-3">
+                  <Checkbox
+                    checked={allVisibleSelected ? true : someSelected ? "indeterminate" : false}
+                    onCheckedChange={toggleAll}
+                    aria-label="เลือกทั้งหมด"
+                  />
+                </th>
+                <th className="w-[24%] px-4 py-3">Name</th>
+                <th className="w-[26%] px-4 py-3">Company</th>
+                <th className="w-[22%] px-4 py-3">Title</th>
+                <th className="w-[16%] px-4 py-3">Phone</th>
+                <th className="w-[12%] px-4 py-3">Last Activity</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((c) => {
                 const comp = getCompany(c.companyId);
                 return (
-                  <tr key={c.id} onClick={() => setOpenId(c.id)} className="cursor-pointer border-b border-border/60 transition hover:bg-fresco/5">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-brand text-xs font-semibold text-white">
-                          {c.name.replace(/คุณ|Mr\.|Ms\./g, "").trim().slice(0, 1)}
-                        </div>
-                        <span className="font-medium">{c.name}</span>
-                      </div>
+                  <tr key={c.id} onClick={() => setOpenId(c.id)} className={cn("cursor-pointer border-b border-border/60 transition hover:bg-fresco/5", selectedIds.has(c.id) && "bg-fresco/5")}>
+                    <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={selectedIds.has(c.id)}
+                        onCheckedChange={() => toggleOne(c.id)}
+                        aria-label="เลือก"
+                      />
                     </td>
-                    <td className="px-4 py-3 text-fresco hover:underline">{comp?.name}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{c.jobTitle}</td>
-                    <td className="px-4 py-3"><span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs">{c.roleType}</span></td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1 text-emerald-700"><MessageCircle className="h-3.5 w-3.5" />{c.lineId}</span>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">{c.phone}</td>
-                    <td className="px-4 py-3"><PreferredBadge value={c.preferred} /></td>
-                    <td className="px-4 py-3 text-muted-foreground">{c.lastContacted}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{c.assignedTo}</td>
+                    <td className="truncate px-4 py-3 font-medium">{c.name}</td>
+                    <td className="truncate px-4 py-3 text-fresco">{comp?.name ?? "—"}</td>
+                    <td className="truncate px-4 py-3 text-muted-foreground">{c.jobTitle || "—"}</td>
+                    <td className="truncate px-4 py-3 text-muted-foreground">{c.phone || "—"}</td>
+                    <td className="truncate px-4 py-3 text-muted-foreground tabular-nums">{lastActivityDate(c)}</td>
                   </tr>
                 );
               })}
@@ -125,9 +196,6 @@ function ContactsPage() {
           <div className="fixed inset-y-0 right-0 z-50 w-full max-w-xl overflow-y-auto bg-background shadow-2xl">
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background/95 px-6 py-4 backdrop-blur">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-brand text-sm font-semibold text-white">
-                  {selected.name.replace(/คุณ|Mr\.|Ms\./g, "").trim().slice(0, 2)}
-                </div>
                 <div>
                   <h2 className="text-lg font-semibold">{selected.name}</h2>
                   <p className="text-xs text-muted-foreground">{selected.jobTitle} · {company?.name}</p>
@@ -168,7 +236,7 @@ function ContactsPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <TierBadge tier={d.tier} />
-                          <p className="font-semibold text-fresco">{formatTHB(d.value)}</p>
+                          <p className="font-semibold text-fresco">{formatTHB2(d.value)}</p>
                         </div>
                       </Card>
                     ))}
@@ -188,15 +256,5 @@ function ContactsPage() {
         onSaved={refresh}
       />
     </div>
-  );
-}
-
-function PreferredBadge({ value }: { value: string }) {
-  const Icon = value === "LINE" ? MessageCircle : value === "Phone" ? Phone : value === "Email" ? Mail : UsersIcon;
-  const cls = value === "LINE" ? "text-emerald-700 bg-emerald-50" : "text-fresco bg-fresco/10";
-  return (
-    <span className={cn("inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium", cls)}>
-      <Icon className="h-3 w-3" /> {value}
-    </span>
   );
 }

@@ -50,7 +50,7 @@ function InfluencersPage() {
     <div>
       <PageHeader
         title="Influencers"
-        subtitle={`${influencers.length} creators — เครือข่ายครีเอเตอร์สำหรับ Brand Activation`}
+        subtitle={`${influencers.length} creators`}
         actions={<Button size="sm" className="bg-fresco hover:bg-fresco/90" onClick={() => setDialog({ open: true, initial: null })}><Plus className="h-4 w-4" /> เพิ่ม Influencer</Button>}
       />
 
@@ -104,9 +104,9 @@ function InfluencersPage() {
                 </div>
               </div>
 
-              {i.rateCard && <p className="mt-3 text-xs text-muted-foreground">💸 Rate: <span className="font-medium text-foreground">{i.rateCard}</span></p>}
+              {i.rateCard && <p className="mt-3 text-xs text-muted-foreground">Rate: <span className="font-medium text-foreground">{i.rateCard}</span></p>}
               {i.brandsWorkedWith.length > 0 && (
-                <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">🤝 เคยร่วมงาน: {i.brandsWorkedWith.join(", ")}</p>
+                <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">เคยร่วมงาน: {i.brandsWorkedWith.join(", ")}</p>
               )}
             </Card>
           ))}

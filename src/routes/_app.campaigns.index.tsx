@@ -58,7 +58,6 @@ function CampaignsPage() {
     <div>
       <PageHeader
         title="Brand Activations"
-        subtitle="จัดการ execution ของแคมเปญ DOOH + Influencer — สถานะ งาน ความเสี่ยง และสิ่งที่ต้องทำวันนี้"
         actions={
           <>
             <Button size="sm" variant="outline" onClick={() => setMatchOpen(true)}><Wand2 className="h-4 w-4" /> AI Matchmaker</Button>
@@ -99,9 +98,9 @@ function CampaignsPage() {
               </div>
 
               <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset", isInternal ? "bg-violet-50 text-violet-700 ring-violet-200" : "bg-indigo-50 text-indigo-700 ring-indigo-200")}>{isInternal ? "🏠" : "🤝"} {typeLabel(c.campaignType)}</span>
+                <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset", isInternal ? "bg-violet-50 text-violet-700 ring-violet-200" : "bg-indigo-50 text-indigo-700 ring-indigo-200")}>{typeLabel(c.campaignType)}</span>
                 <span className={cn("rounded-full px-2 py-0.5 text-[11px] ring-1 ring-inset", STATUS_CLS[c.status] ?? "bg-slate-100 text-slate-600 ring-slate-200")}>{c.status}</span>
-                <span className={cn("rounded-full px-2 py-0.5 text-[11px] ring-1 ring-inset", hm.cls)}>{hm.dot} {hm.label}</span>
+                <span className={cn("rounded-full px-2 py-0.5 text-[11px] ring-1 ring-inset", hm.cls)}>{hm.label}</span>
                 {c.objective && <span className="rounded-full bg-fresco/10 px-2 py-0.5 text-[11px] text-fresco">{c.objective}</span>}
               </div>
 
@@ -139,7 +138,7 @@ function CampaignsPage() {
                 </div>
                 {best && (
                   <p className="mt-2 border-t border-border/60 pt-1.5 text-[11px]">
-                    <span className="text-muted-foreground">⭐ Top: </span>
+                    <span className="text-muted-foreground">Top: </span>
                     <span className="font-medium">{best.p.influencerName}</span>
                     <span className="text-muted-foreground"> · {compact(best.p.views)} views · ER {best.d.engagementRate.toFixed(1)}% · {best.d.score}/100</span>
                   </p>
@@ -219,7 +218,7 @@ function MatchmakerDialog({ open, onOpenChange, companies, screens, influencers,
           },
         },
       });
-      toast.success("สร้าง Activation จากผล AI แล้ว ✅");
+      toast.success("สร้าง Activation จากผล AI แล้ว");
       onCreated(); onOpenChange(false); setResult(null); setCompanyId("");
     } catch (e: any) {
       toast.error(`สร้างไม่สำเร็จ: ${e?.message ?? "error"}`);
@@ -229,7 +228,7 @@ function MatchmakerDialog({ open, onOpenChange, companies, screens, influencers,
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
-        <DialogHeader><DialogTitle>🪄 AI Campaign Matchmaker</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>AI Campaign Matchmaker</DialogTitle></DialogHeader>
         <p className="text-xs text-muted-foreground">เลือกลูกค้า → น้องตาเทพแนะนำป้าย + influencer ที่เหมาะที่สุด พร้อมประเมินผล</p>
         <div className="flex items-end gap-2">
           <div className="flex-1"><Combobox label="ลูกค้า" value={companyId} onChange={setCompanyId} options={companies.map((c) => ({ value: c.id, label: c.name }))} placeholder="เลือกบริษัท…" searchPlaceholder="ค้นหา…" /></div>

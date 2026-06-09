@@ -56,6 +56,30 @@ export const DURATIONS = ["1 Week", "2 Weeks", "1 Month", "2 Months", "3 Months"
 export const ACTIVITY_TYPES = ["Call", "Meeting", "LINE", "Email", "Demo", "Proposal Sent", "Follow-up", "Site Visit"] as const;
 export const ACTIVITY_STATUSES = ["Planned", "Done", "Missed", "Rescheduled"] as const;
 
+// ----- Deal / Opportunity extended fields -----
+export const DEAL_LEAD_SOURCES = [
+  "Organic", "Google Search", "Facebook", "Instagram", "TikTok", "LINE OA",
+  "Referral", "Partner", "Event", "Sales Outreach", "Existing Customer", "Agency",
+] as const;
+export const PAYMENT_METHODS = ["Platform", "Account Transfer", "TikTok Shop", "Cash", "Invoice", "Credit Term"] as const;
+export const PAYMENT_STATUSES = ["Pending", "Partially Paid", "Paid", "Refunded", "Cancelled", "Overdue"] as const;
+export const REVENUE_TYPES = ["Self-Service", "Sales Assisted", "Agency Managed", "Partner Managed"] as const;
+export const DEAL_CAMPAIGN_STATUSES = [
+  "Draft", "Waiting Approval", "Approved", "Scheduled", "Running", "Paused", "Completed", "Rejected",
+] as const;
+export const CREATIVE_STATUSES = [
+  "Not Submitted", "Pending Review", "Revision Required", "Approved", "Uploaded", "Published",
+] as const;
+export const LOST_REASONS = [
+  "Budget Too High", "No Response", "Competitor Won", "No Need", "Wrong Timing",
+  "Technical Issue", "Duplicate Lead", "Internal Decision", "Other",
+] as const;
+export const SCREEN_INVENTORY = [
+  "แยกรร.ดาวรุ่ง", "แยกพงษ์เพชร", "แยกเดชาติวงศ์", "สี่แยกชะอำ", "แยกเทพประสิทธิ์",
+  "แลนด์มาร์คราชพฤกษ์", "แยกพัทยาเหนือ", "แลนด์มาร์คมหาชัย", "ถนนเทพคุณากร",
+] as const;
+export const CONTRACT_TYPES = ["One-Time", "Monthly", "Quarterly", "Yearly", "Subscription"] as const;
+
 // All 77 Thai provinces (Bangkok first, rest alphabetical-ish by Thai).
 export const THAI_PROVINCES = [
   "กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", "ขอนแก่น",

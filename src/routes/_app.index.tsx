@@ -1,23 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { StatCard } from "@/components/crm/stat-card";
+import { useState } from "react";
 import { PageHeader } from "@/components/crm/page-header";
 import { AIPanel } from "@/components/crm/ai-panel";
-import { TierBadge, StageBadge } from "@/components/crm/badges";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatTHB, STAGES } from "@/lib/mock-data";
+import { cn } from "@/lib/utils";
 import { listDeals, listCompanies, listActivities } from "@/lib/api/crm.functions";
-import {
-  Wallet, TrendingUp, Trophy, Target, UserPlus, Users,
-  Phone, Calendar, MessageCircle, Mail, Plus
-} from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Plus, Calendar, ArrowRight } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, AreaChart, Area, Legend
+  PieChart, Pie, Cell, LineChart, Line, Legend,
 } from "recharts";
 
 export const Route = createFileRoute("/_app/")({
-  head: () => ({ meta: [{ title: "Dashboard — Tathep CRM" }] }),
+  head: () => ({ meta: [{ title: "Data Analysis — Tathep CRM" }] }),
   loader: async () => {
     const [deals, companies, activities] = await Promise.all([
       listDeals(),
@@ -29,223 +26,299 @@ export const Route = createFileRoute("/_app/")({
   component: Dashboard,
 });
 
+/* TapTap palette */
+const TT = {
+  c1: "#4887F6", // blue
+  c2: "#59C3CF", // teal
+  c3: "#F1CD49", // yellow
+  c4: "#FE632F", // coral
+  c5: "#E2635E", // red
+  grid: "#EEEEEE",
+  axis: "#8E8E8E",
+};
+const TIERS = ["Platinum", "Gold", "Silver", "Bronze"] as const;
+const TIER_COLOR: Record<string, string> = { Platinum: TT.c1, Gold: TT.c3, Silver: TT.c2, Bronze: TT.c4 };
+
+/* TapTap-style stat card: big value + delta% arrow + two compare rows */
+function TTStat({
+  label, value, delta, rows,
+}: {
+  label: string;
+  value: string;
+  delta: { value: string; positive: boolean };
+  rows: { label: string; value: string; pct?: string }[];
+}) {
+  return (
+    <Card className="rounded-2xl border-taptap-100 p-5 shadow-elev-1 transition hover:shadow-elev-2">
+      <p className="text-sm text-taptap-muted">{label}</p>
+      <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <span className="text-2xl font-bold leading-none tracking-tight text-taptap-ink">{value}</span>
+        <span className={cn("inline-flex items-center gap-0.5 text-xs font-medium", delta.positive ? "text-taptap-success" : "text-taptap-danger")}>
+          {delta.value}
+          {delta.positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+        </span>
+      </div>
+      <div className="mt-4 space-y-1.5 border-t border-taptap-line pt-3">
+        {rows.map((r) => (
+          <div key={r.label} className="flex items-center justify-between text-xs">
+            <span className="text-taptap-muted">{r.label}</span>
+            <span className="font-medium text-taptap-ink">
+              {r.value}{r.pct && <span className="ml-1 font-normal text-taptap-muted">({r.pct})</span>}
+            </span>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 function Dashboard() {
   const { deals: DEALS, companies: COMPANIES, activities: ACTIVITIES } = Route.useLoaderData();
-  const companyMap = new Map(COMPANIES.map((c) => [c.id, c]));
-  const getCompany = (id: string) => companyMap.get(id);
+
+  // ----- filters (apply to the analytical chart section) -----
+  const [fClient, setFClient] = useState("All");
+  const [fTier, setFTier] = useState("All");
+  const [fStart, setFStart] = useState("");
+  const [fEnd, setFEnd] = useState("");
+
+  const fdeals = DEALS.filter((d) => {
+    if (fClient !== "All" && d.clientType !== fClient) return false;
+    if (fTier !== "All" && d.tier !== fTier) return false;
+    if (fStart && (d.expectedClose ?? "") < fStart) return false;
+    if (fEnd && (d.expectedClose ?? "") > fEnd) return false;
+    return true;
+  });
+
+  // ----- top KPIs (global) -----
   const openDeals = DEALS.filter((d) => !["Won", "Lost"].includes(d.stage));
-  const wonThisMonth = DEALS.filter((d) => d.stage === "Won");
+  const wonDeals = DEALS.filter((d) => d.stage === "Won");
+  const lostDeals = DEALS.filter((d) => d.stage === "Lost");
   const pipelineValue = openDeals.reduce((s, d) => s + d.value, 0);
-  const wonValue = wonThisMonth.reduce((s, d) => s + d.value, 0);
+  const wonValue = wonDeals.reduce((s, d) => s + d.value, 0);
+  const winRate = wonDeals.length + lostDeals.length > 0
+    ? Math.round((wonDeals.length / (wonDeals.length + lostDeals.length)) * 100) : 0;
+  const hotDeals = DEALS.filter((d) => d.aiClass === "Hot").length;
+  const dueThisWeek = DEALS.filter((d) => d.nextFollowUp >= "2026-06-04" && d.nextFollowUp <= "2026-06-10").length;
+  const avgOpen = openDeals.length ? Math.round(pipelineValue / openDeals.length) : 0;
+  const avgWin = wonDeals.length ? Math.round(wonValue / wonDeals.length) : 0;
+  const activeClients = COMPANIES.filter((c) => c.status === "Active" || c.status === "Recurring").length;
 
-  const byStage = STAGES.filter((s) => !["Lost", "On Hold"].includes(s)).map((s) => ({
-    stage: s,
-    value: DEALS.filter((d) => d.stage === s).reduce((sum, d) => sum + d.value, 0),
-    count: DEALS.filter((d) => d.stage === s).length,
-  }));
+  // ----- stacked bar: pipeline value by stage, stacked by tier -----
+  const stageList = STAGES.filter((s) => !["Lost", "On Hold"].includes(s));
+  const barData = stageList.map((s) => {
+    const row: any = { stage: s };
+    for (const t of TIERS) {
+      row[t] = fdeals.filter((d) => d.stage === s && d.tier === t).reduce((sum, d) => sum + d.value, 0);
+    }
+    return row;
+  });
 
-  const tierData = ["Platinum", "Gold", "Silver", "Bronze"].map((t) => ({
+  // ----- donut: open pipeline value by tier -----
+  const donut = TIERS.map((t) => ({
     name: t,
-    value: COMPANIES.filter((c) => c.tier === t).length,
+    value: fdeals.filter((d) => d.tier === t && !["Won", "Lost"].includes(d.stage)).reduce((s, d) => s + d.value, 0),
+  })).filter((d) => d.value > 0);
+  const donutTotal = donut.reduce((s, d) => s + d.value, 0);
+
+  // ----- line charts (monthly forecast) -----
+  const months = ["เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย."];
+  const trend = months.map((m, i) => ({
+    month: m,
+    pipeline: [720000, 980000, 1320000, 1480000, 1750000, 2100000][i],
   }));
-  const tierColors = ["oklch(0.6 0.2 295)", "oklch(0.78 0.16 80)", "oklch(0.65 0.02 250)", "oklch(0.65 0.15 50)"];
-
-  const splitData = [
-    { name: "Direct", value: DEALS.filter((d) => d.clientType === "Direct Client").reduce((s, d) => s + d.value, 0), count: DEALS.filter((d) => d.clientType === "Direct Client").length },
-    { name: "Agency", value: DEALS.filter((d) => d.clientType === "Agency").reduce((s, d) => s + d.value, 0), count: DEALS.filter((d) => d.clientType === "Agency").length },
-  ];
-
-  const forecast = [
-    { month: "เม.ย.", value: 720000 }, { month: "พ.ค.", value: 980000 },
-    { month: "มิ.ย.", value: 1320000 }, { month: "ก.ค.", value: 1480000 },
-    { month: "ส.ค.", value: 1750000 }, { month: "ก.ย.", value: 2100000 },
-  ];
+  const splitTrend = months.map((m, i) => ({
+    month: m,
+    Direct: [420, 560, 760, 820, 980, 1180][i] * 1000,
+    Agency: [300, 420, 560, 660, 770, 920][i] * 1000,
+  }));
 
   return (
     <div>
       <PageHeader
-        title="Sales Dashboard"
+        title="Data Analysis"
         actions={
           <>
-            <Button variant="outline" size="sm">Export</Button>
-            <Button size="sm" className="bg-fresco hover:bg-fresco/90"><Plus className="h-4 w-4" /> New Deal</Button>
+            <Button variant="outline" size="sm" className="rounded-lg border-taptap-200 text-taptap-700 hover:bg-taptap-50">Export</Button>
+            <Button size="sm" className="rounded-lg bg-taptap-600 shadow-elev-1 hover:bg-taptap-700"><Plus className="h-4 w-4" /> New Deal</Button>
           </>
         }
       />
 
-      <div className="space-y-6 p-8">
-        {/* Stat row */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          <StatCard label="Pipeline Value" value={formatTHB(pipelineValue)} delta={{ value: "+18%", positive: true }} icon={Wallet} tone="brand" />
-          <StatCard label="Open Deals" value={String(openDeals.length)} delta={{ value: "+3", positive: true }} icon={Target} />
-          <StatCard label="Won This Month" value={formatTHB(wonValue)} delta={{ value: "+24%", positive: true }} icon={Trophy} />
-          <StatCard label="Win Rate" value="47%" delta={{ value: "+4pp", positive: true }} icon={TrendingUp} />
-          <StatCard label="New Leads / Week" value="28" delta={{ value: "+12", positive: true }} icon={UserPlus} />
-          <StatCard label="Active Clients" value={String(COMPANIES.filter((c) => c.status === "Active" || c.status === "Recurring").length)} icon={Users} />
+      <div className="space-y-5 p-8">
+        {/* ===== Stat cards ===== */}
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <TTStat
+            label="Total Pipeline" value={formatTHB(pipelineValue)}
+            delta={{ value: "18.2%", positive: true }}
+            rows={[
+              { label: "Open deals", value: String(openDeals.length) },
+              { label: "Avg / deal", value: formatTHB(avgOpen) },
+            ]}
+          />
+          <TTStat
+            label="Open Deals" value={String(openDeals.length)}
+            delta={{ value: "3", positive: true }}
+            rows={[
+              { label: "Hot leads", value: String(hotDeals), pct: openDeals.length ? `${Math.round((hotDeals / openDeals.length) * 100)}%` : "0%" },
+              { label: "Due this week", value: String(dueThisWeek) },
+            ]}
+          />
+          <TTStat
+            label="Won This Month" value={formatTHB(wonValue)}
+            delta={{ value: "24.1%", positive: true }}
+            rows={[
+              { label: "Closed deals", value: String(wonDeals.length) },
+              { label: "Avg / win", value: formatTHB(avgWin) },
+            ]}
+          />
+          <TTStat
+            label="Win Rate" value={`${winRate}%`}
+            delta={{ value: "4pp", positive: true }}
+            rows={[
+              { label: "Won", value: String(wonDeals.length) },
+              { label: "Lost", value: String(lostDeals.length) },
+            ]}
+          />
         </div>
 
-        {/* Charts row 1 */}
-        <div className="grid gap-4 lg:grid-cols-3">
-          <Card className="p-5 lg:col-span-2 shadow-soft">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">Pipeline by Stage</h3>
-                <p className="text-xs text-muted-foreground">มูลค่า deal ที่อยู่ในแต่ละ stage</p>
+        {/* ===== Filter bar + stacked bar chart ===== */}
+        <Card className="rounded-2xl p-5 shadow-elev-1">
+          <div className="flex flex-wrap items-center gap-4 border-b border-taptap-line pb-4">
+            <FilterSelect label="Client Type" value={fClient} onChange={setFClient}
+              options={["All", "Direct Client", "Agency"]} />
+            <FilterSelect label="Tier" value={fTier} onChange={setFTier}
+              options={["All", ...TIERS]} />
+            <div className="ml-auto flex items-center gap-2">
+              <div className="relative">
+                <Calendar className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-taptap-muted" />
+                <input type="date" value={fStart} onChange={(e) => setFStart(e.target.value)}
+                  className="h-9 rounded-lg border border-input bg-white pl-8 pr-2 text-sm text-taptap-ink focus:border-taptap-500 focus:outline-none focus:ring-2 focus:ring-taptap-200" />
               </div>
+              <ArrowRight className="h-4 w-4 text-taptap-muted" />
+              <div className="relative">
+                <Calendar className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-taptap-muted" />
+                <input type="date" value={fEnd} onChange={(e) => setFEnd(e.target.value)}
+                  className="h-9 rounded-lg border border-input bg-white pl-8 pr-2 text-sm text-taptap-ink focus:border-taptap-500 focus:outline-none focus:ring-2 focus:ring-taptap-200" />
+              </div>
+              {(fClient !== "All" || fTier !== "All" || fStart || fEnd) && (
+                <Button variant="ghost" size="sm" className="text-taptap-700"
+                  onClick={() => { setFClient("All"); setFTier("All"); setFStart(""); setFEnd(""); }}>
+                  Reset
+                </Button>
+              )}
             </div>
-            <div className="h-64">
+          </div>
+
+          <div className="mt-4">
+            <h3 className="text-sm font-semibold text-taptap-ink">Pipeline by Stage & Tier</h3>
+            <p className="text-xs text-taptap-muted">มูลค่า deal แยกตาม stage และ tier (stacked)</p>
+            <div className="mt-3 h-80">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={byStage} margin={{ left: -10, right: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.94 0.006 245)" vertical={false} />
-                  <XAxis dataKey="stage" stroke="oklch(0.55 0.025 250)" tick={{ fontSize: 11 }} />
-                  <YAxis stroke="oklch(0.55 0.025 250)" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v / 1000}K`} />
-                  <Tooltip
-                    formatter={(v: number) => formatTHB(v)}
-                    contentStyle={{ borderRadius: 10, border: "1px solid oklch(0.94 0.006 245)", fontSize: 12 }}
-                  />
-                  <Bar dataKey="value" radius={[6, 6, 0, 0]} fill="oklch(0.45 0.09 220)" />
+                <BarChart data={barData} margin={{ left: 0, right: 8, top: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={TT.grid} vertical={false} />
+                  <XAxis dataKey="stage" stroke={TT.axis} tick={{ fontSize: 11 }} />
+                  <YAxis stroke={TT.axis} tick={{ fontSize: 11 }} tickFormatter={(v) => `${v / 1000}K`} />
+                  <Tooltip formatter={(v: number) => formatTHB(v)}
+                    contentStyle={{ borderRadius: 10, border: `1px solid ${TT.grid}`, fontSize: 12 }} />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+                  {TIERS.map((t, i) => (
+                    <Bar key={t} dataKey={t} stackId="a" fill={TIER_COLOR[t]}
+                      radius={i === TIERS.length - 1 ? [6, 6, 0, 0] : undefined as any} />
+                  ))}
                 </BarChart>
               </ResponsiveContainer>
             </div>
+          </div>
+        </Card>
+
+        {/* ===== Two line charts ===== */}
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card className="rounded-2xl p-5 shadow-elev-1">
+            <h3 className="text-sm font-semibold text-taptap-ink">Pipeline Trend</h3>
+            <p className="text-xs text-taptap-muted">คาดการณ์มูลค่า pipeline รายเดือน</p>
+            <div className="mt-3 h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={trend} margin={{ left: 0, right: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={TT.grid} vertical={false} />
+                  <XAxis dataKey="month" stroke={TT.axis} tick={{ fontSize: 11 }} />
+                  <YAxis stroke={TT.axis} tick={{ fontSize: 11 }} tickFormatter={(v) => `${v / 1000000}M`} />
+                  <Tooltip formatter={(v: number) => formatTHB(v)} contentStyle={{ borderRadius: 10, fontSize: 12 }} />
+                  <Line type="monotone" dataKey="pipeline" name="Pipeline" stroke={TT.c1} strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </Card>
 
-          <Card className="p-5 shadow-soft">
-            <h3 className="text-sm font-semibold text-foreground">Lead Tier Distribution</h3>
-            <p className="text-xs text-muted-foreground">จำนวน account ในแต่ละ tier</p>
-            <div className="mt-2 h-56">
+          <Card className="rounded-2xl p-5 shadow-elev-1">
+            <h3 className="text-sm font-semibold text-taptap-ink">Direct vs Agency Trend</h3>
+            <p className="text-xs text-taptap-muted">แนวโน้ม pipeline แยกตามประเภทลูกค้า</p>
+            <div className="mt-3 h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={splitTrend} margin={{ left: 0, right: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={TT.grid} vertical={false} />
+                  <XAxis dataKey="month" stroke={TT.axis} tick={{ fontSize: 11 }} />
+                  <YAxis stroke={TT.axis} tick={{ fontSize: 11 }} tickFormatter={(v) => `${v / 1000000}M`} />
+                  <Tooltip formatter={(v: number) => formatTHB(v)} contentStyle={{ borderRadius: 10, fontSize: 12 }} />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                  <Line type="monotone" dataKey="Direct" stroke={TT.c2} strokeWidth={2.5} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="Agency" stroke={TT.c4} strokeWidth={2.5} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </div>
+
+        {/* ===== Donut + AI insight ===== */}
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Card className="rounded-2xl p-5 shadow-elev-1">
+            <h3 className="text-sm font-semibold text-taptap-ink">Pipeline by Tier</h3>
+            <p className="text-xs text-taptap-muted">สัดส่วนมูลค่า open pipeline</p>
+            <div className="relative mt-2 h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={tierData} dataKey="value" innerRadius={50} outerRadius={80} paddingAngle={3}>
-                    {tierData.map((_, i) => <Cell key={i} fill={tierColors[i]} />)}
+                  <Pie data={donut} dataKey="value" innerRadius={68} outerRadius={95} paddingAngle={2}>
+                    {donut.map((d) => <Cell key={d.name} fill={TIER_COLOR[d.name]} />)}
                   </Pie>
-                  <Tooltip contentStyle={{ borderRadius: 10, fontSize: 12 }} />
+                  <Tooltip formatter={(v: number) => formatTHB(v)} contentStyle={{ borderRadius: 10, fontSize: 12 }} />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
                 </PieChart>
               </ResponsiveContainer>
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center" style={{ top: "-28px" }}>
+                <span className="text-xl font-bold text-taptap-ink">{formatTHB(donutTotal)}</span>
+                <span className="text-xs text-taptap-muted">Total</span>
+              </div>
             </div>
           </Card>
-        </div>
 
-        {/* Charts row 2 */}
-        <div className="grid gap-4 lg:grid-cols-3">
-          <Card className="p-5 shadow-soft">
-            <h3 className="text-sm font-semibold text-foreground">Direct vs Agency</h3>
-            <p className="text-xs text-muted-foreground">การ split pipeline ตามประเภทลูกค้า</p>
-            <div className="mt-5 space-y-4">
-              {splitData.map((s, i) => {
-                const total = splitData[0].value + splitData[1].value;
-                const pct = (s.value / total) * 100;
-                return (
-                  <div key={s.name}>
-                    <div className="mb-1 flex items-center justify-between text-sm">
-                      <span className="font-medium">{s.name} <span className="text-xs text-muted-foreground">· {s.count} deals</span></span>
-                      <span className="font-semibold text-fresco">{formatTHB(s.value)}</span>
-                    </div>
-                    <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
-                      <div
-                        className="h-full rounded-full"
-                        style={{ width: `${pct}%`, background: i === 0 ? "var(--fresco)" : "var(--lake)" }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <AIPanel className="mt-5" subtitle="Insight">
-              <p>Agency pipeline กำลังเติบโต <b>+34%</b> เดือนนี้ — แนะนำให้เน้น cross-sell Bangkok Bites และ Creative Hub ซึ่งมี deal มูลค่าเฉลี่ยสูง</p>
-            </AIPanel>
-          </Card>
-
-          <Card className="p-5 shadow-soft lg:col-span-2">
-            <h3 className="text-sm font-semibold text-foreground">Revenue Forecast</h3>
-            <p className="text-xs text-muted-foreground">คาดการณ์รายได้ตาม expected close date</p>
-            <div className="mt-3 h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={forecast} margin={{ left: -10 }}>
-                  <defs>
-                    <linearGradient id="gradF" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="oklch(0.81 0.13 215)" stopOpacity={0.6} />
-                      <stop offset="100%" stopColor="oklch(0.81 0.13 215)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.94 0.006 245)" vertical={false} />
-                  <XAxis dataKey="month" stroke="oklch(0.55 0.025 250)" tick={{ fontSize: 11 }} />
-                  <YAxis stroke="oklch(0.55 0.025 250)" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v / 1000000}M`} />
-                  <Tooltip formatter={(v: number) => formatTHB(v)} contentStyle={{ borderRadius: 10, fontSize: 12 }} />
-                  <Area type="monotone" dataKey="value" stroke="oklch(0.45 0.09 220)" strokeWidth={2} fill="url(#gradF)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
-        </div>
-
-        {/* Recent + follow-ups */}
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card className="p-5 shadow-soft">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-foreground">Recent Activities</h3>
-              <Button variant="ghost" size="sm" className="text-fresco">View all</Button>
-            </div>
-            <ul className="space-y-3">
-              {ACTIVITIES.filter((a) => a.status === "Done").slice(0, 5).map((a) => {
-                const Icon = a.type === "Call" ? Phone : a.type === "Meeting" ? Calendar : a.type === "LINE" ? MessageCircle : Mail;
-                return (
-                  <li key={a.id} className="flex gap-3 rounded-lg p-2 transition hover:bg-slate-50">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-fresco/10 text-fresco">
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-foreground">{a.title}</p>
-                      <p className="truncate text-xs text-muted-foreground">{getCompany(a.companyId || "")?.name} · {a.assignedTo}</p>
-                    </div>
-                    <p className="shrink-0 text-xs text-muted-foreground">{a.date.slice(11, 16)}</p>
-                  </li>
-                );
-              })}
+          <AIPanel
+            className="lg:col-span-2"
+            subtitle="Strategic Recommendations · อัปเดต 5 นาทีก่อน"
+            actionLabel="Refresh insights"
+            onGenerate={() => {}}
+          >
+            <ul className="space-y-2 text-sm">
+              <li className="flex gap-2"><span className="text-taptap-600">●</span> <span><b>Pipeline ฿{(pipelineValue / 1000000).toFixed(1)}M</b> จาก {openDeals.length} open deals — Win rate {winRate}% เดือนนี้</span></li>
+              <li className="flex gap-2"><span className="text-taptap-600">●</span> <span>มี <b>{hotDeals} hot deals</b> และ <b>{dueThisWeek} รายการ</b> ต้อง follow-up สัปดาห์นี้ — เร่งปิดก่อนหลุด</span></li>
+              <li className="flex gap-2"><span className="text-taptap-600">●</span> <span>Active clients <b>{activeClients} ราย</b> — ลอง pitch multi-screen bundle เพื่อ upsell agency</span></li>
             </ul>
-          </Card>
-
-          <Card className="p-5 shadow-soft">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-foreground">Today's Follow-ups</h3>
-              <Button variant="ghost" size="sm" className="text-fresco">View calendar</Button>
-            </div>
-            <ul className="space-y-3">
-              {DEALS.filter((d) => d.nextFollowUp >= "2026-06-04" && d.nextFollowUp <= "2026-06-10").slice(0, 5).map((d) => (
-                <li key={d.id} className="flex items-center gap-3 rounded-lg border border-border/60 p-3 transition hover:border-fresco/30 hover:bg-fresco/5">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="truncate text-sm font-medium text-foreground">{d.name}</p>
-                      <TierBadge tier={d.tier} />
-                    </div>
-                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {getCompany(d.companyId)?.name} · {d.nextFollowUp}
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <p className="text-sm font-semibold text-fresco">{formatTHB(d.value)}</p>
-                    <StageBadge stage={d.stage} />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </Card>
+          </AIPanel>
         </div>
-
-        <AIPanel
-          subtitle="Strategic Recommendations · อัปเดต 5 นาทีก่อน"
-          actionLabel="Refresh insights"
-          onGenerate={() => {}}
-        >
-          <ul className="space-y-2 text-sm">
-            <li className="flex gap-2"><span className="text-fresco">●</span> <span><b>Dermaglow Q3 Brand Push</b> อยู่ในขั้น Negotiation มา 9 วัน — แนะนำให้นัด in-person meeting เพื่อปิดดีล (probability +15%)</span></li>
-            <li className="flex gap-2"><span className="text-fresco">●</span> <span>มีโอกาส upsell <b>3 agencies</b> ที่เคยซื้อ screen เดียว → ลอง pitch multi-screen bundle</span></li>
-            <li className="flex gap-2"><span className="text-fresco">●</span> <span>Hot lead <b>คุณภูริ (ภูเขา Coffee)</b> เปิดอ่าน proposal 4 ครั้งใน 2 วัน — ติดต่อภายใน 24 ชม.</span></li>
-          </ul>
-        </AIPanel>
       </div>
     </div>
   );
 }
 
-
+/* Compact labelled select for the filter bar (TapTap style) */
+function FilterSelect({ label, value, onChange, options }: {
+  label: string; value: string; onChange: (v: string) => void; options: readonly string[];
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-sm text-taptap-muted">{label}</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)}
+        className="h-9 min-w-[140px] rounded-lg border border-input bg-white px-3 text-sm text-taptap-ink focus:border-taptap-500 focus:outline-none focus:ring-2 focus:ring-taptap-200">
+        {options.map((o) => <option key={o} value={o}>{o === "All" ? "ทั้งหมด" : o}</option>)}
+      </select>
+    </div>
+  );
+}

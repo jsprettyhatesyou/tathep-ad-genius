@@ -170,30 +170,35 @@ export function Sidebar() {
 
 export function Topbar({ aiOpen, onToggleAI }: { aiOpen?: boolean; onToggleAI?: () => void } = {}) {
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-border bg-background/80 px-8 backdrop-blur">
-      <div className="relative max-w-md flex-1">
+    <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-border bg-white px-8 shadow-sm">
+      <div className="relative w-full max-w-xl">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <input
           type="search"
           placeholder="Search companies, deals, contacts…"
-          className="h-9 w-full rounded-lg border border-input bg-white pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:border-fresco focus:outline-none focus:ring-2 focus:ring-lake/30"
+          className="h-9 w-full rounded-lg border border-input bg-slate-50 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-fresco focus:bg-white focus:outline-none focus:ring-2 focus:ring-lake/30"
         />
       </div>
       <div className="flex items-center gap-2">
         <button
           onClick={onToggleAI}
+          title="AI Assistant"
+          aria-label="AI Assistant"
           className={cn(
-            "flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium transition",
-            aiOpen ? "bg-fresco text-white hover:bg-fresco/90" : "bg-gradient-brand text-white hover:opacity-90",
+            "flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg text-sm font-medium transition",
+            aiOpen
+              ? "w-9 justify-center bg-fresco/10 text-fresco hover:bg-fresco/20"
+              : "px-3 bg-fresco text-white hover:bg-fresco/90",
           )}
         >
-          <Sparkles className="h-4 w-4" /> AI Assistant
+          <Sparkles className="h-4 w-4 shrink-0" />
+          {!aiOpen && <span>AI Assistant</span>}
         </button>
-        <button className="relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-fresco">
+        <button className="relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-fresco">
           <Bell className="h-[18px] w-[18px]" />
-          <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-rose-500" />
+          <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-taptap-aux-600 ring-2 ring-white" />
         </button>
-        <button className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-fresco">
+        <button className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-fresco">
           <Settings className="h-[18px] w-[18px]" />
         </button>
       </div>

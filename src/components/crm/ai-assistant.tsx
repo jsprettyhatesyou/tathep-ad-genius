@@ -39,7 +39,7 @@ export function AIAssistant({ open, onClose }: { open: boolean; onClose: () => v
       const { reply } = await assistantChat({ data: { messages: next } });
       setMessages([...next, { role: "assistant", content: reply || "—" }]);
     } catch {
-      setMessages([...next, { role: "assistant", content: "ขออภัยค่ะ ระบบขัดข้องชั่วคราว ลองถามใหม่อีกครั้งนะคะ 🙏" }]);
+      setMessages([...next, { role: "assistant", content: "ขออภัยค่ะ ระบบขัดข้องชั่วคราว ลองถามใหม่อีกครั้งนะคะ" }]);
     } finally {
       setLoading(false);
     }
@@ -71,7 +71,7 @@ export function AIAssistant({ open, onClose }: { open: boolean; onClose: () => v
         {messages.length === 0 && (
           <>
             <div className="rounded-2xl rounded-tl-sm bg-gradient-ai p-3 text-sm leading-relaxed text-slate-700">
-              สวัสดีค่ะหัวหน้า 👋 น้องตาเทพพร้อมช่วยแล้วค่ะ — หา lead, แนะนำจอ DOOH, ร่าง outreach, สรุป/พยากรณ์ pipeline ถามได้เลยค่ะ
+              สวัสดีค่ะหัวหน้า น้องตาเทพพร้อมช่วยแล้วค่ะ — ถามข้อมูลจริงในระบบได้เลย เช่น "เบอร์บริษัท X", "ผู้ติดต่อของ Y", "จอที่ว่างในภูเก็ต" หรือให้ช่วยสรุป/พยากรณ์ pipeline, ร่าง outreach, แนะนำจอ DOOH ก็ได้ค่ะ
             </div>
             <div className="flex flex-wrap gap-1.5">
               {QUICK.map((q) => (
@@ -119,7 +119,7 @@ export function AIAssistant({ open, onClose }: { open: boolean; onClose: () => v
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }}
-            placeholder="Ask anything about your pipeline…"
+            placeholder="ถามข้อมูลในระบบ หรือขอให้ช่วยวางกลยุทธ์…"
             rows={1}
             className="max-h-32 min-h-[24px] flex-1 resize-none bg-transparent px-2 py-1 text-sm placeholder:text-muted-foreground focus:outline-none"
           />

@@ -5,12 +5,13 @@ import { PageHeader } from "@/components/crm/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { Alert } from "@/components/ui/alert";
 import { listScreens, createLead } from "@/lib/api/crm.functions";
 import { findLeads, leadAsset } from "@/lib/api/ai.functions";
-import { MultiSelect } from "@/components/crm/form-kit";
+import { MultiSelect, SingleSelect } from "@/components/crm/form-kit";
 import { CLIENT_TYPES, AGENCY_TYPES, INDUSTRY_OPTIONS_V2 } from "@/lib/crm-options";
 import {
-  Sparkles, Globe, MapPin, Building2, Plus, Zap, Flame, TrendingUp,
+  Sparkles, Globe, MapPin, Building2, Plus, Flame, TrendingUp,
   Target, Wallet, Trophy, Monitor, FileText, Mail, Phone, RotateCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -26,8 +27,6 @@ const SIZES = ["SME", "Mid-Market", "Enterprise", "Public Company"];
 const CLIENT_TYPE_OPTS = CLIENT_TYPES.map((c) => c.value);
 const MARKETING = ["Running Facebook Ads", "Running Google Ads", "Active on TikTok", "Active on Instagram", "Multiple Branches", "Verified Business"];
 const SOURCES = ["Google Maps", "Google Places", "Facebook", "Instagram", "LinkedIn", "Company Website", "News Articles", "Press Releases", "SEC Filings"];
-const INTENT = ["Very High", "High", "Medium", "Low"];
-const EXPANSION = ["Growing Fast", "Growing", "Stable", "Declining"];
 
 const intentColor = (v: string) => v === "Very High" ? "bg-rose-50 text-rose-700 ring-rose-200" : v === "High" ? "bg-orange-50 text-orange-700 ring-orange-200" : v === "Medium" ? "bg-amber-50 text-amber-700 ring-amber-200" : "bg-slate-100 text-slate-600 ring-slate-200";
 const growthColor = (v: string) => v === "Growing Fast" ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : v === "Growing" ? "bg-teal-50 text-teal-700 ring-teal-200" : v === "Stable" ? "bg-slate-100 text-slate-600 ring-slate-200" : "bg-rose-50 text-rose-700 ring-rose-200";
@@ -45,9 +44,6 @@ function LeadFinderPage() {
   const [agencyType, setAgencyType] = useState("");
   const [marketing, setMarketing] = useState<string[]>([]);
   const [sources, setSources] = useState<string[]>(["Google Maps", "Facebook", "Company Website"]);
-  const [advertisingIntent, setAdvertisingIntent] = useState("");
-  const [expansionSignals, setExpansionSignals] = useState("");
-  const [minDoohFit, setMinDoohFit] = useState(0);
 
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<any[]>([]);
@@ -61,12 +57,12 @@ function LeadFinderPage() {
     setAssets({});
     try {
       const { leads, placesEnabled } = await findLeads({
-        data: { industries, billboards, radiusKm, companySizes, clientType: clientType || undefined, agencyType: clientType === "Agency" ? (agencyType || undefined) : undefined, marketingActivity: marketing, leadSources: sources, advertisingIntent: advertisingIntent || undefined, expansionSignals: expansionSignals || undefined, minDoohFit },
+        data: { industries, billboards, radiusKm, companySizes, clientType: clientType || undefined, agencyType: clientType === "Agency" ? (agencyType || undefined) : undefined, marketingActivity: marketing, leadSources: sources },
       });
       setResults(leads);
       setPlacesOn(placesEnabled !== false);
       if (!leads.length) toast("ไม่พบ lead ที่ตรงเกณฑ์ — ลองผ่อนตัวกรองลง");
-      else toast.success(`น้องตาเทพเจอ ${leads.length} leads (จัดอันดับให้แล้ว) ✨`);
+      else toast.success(`น้องตาเทพเจอ ${leads.length} leads (จัดอันดับให้แล้ว)`);
     } catch (e: any) {
       toast.error(`ค้นหาไม่สำเร็จ: ${e?.message ?? "error"}`);
     } finally {
@@ -107,11 +103,11 @@ function LeadFinderPage() {
             aiClass,
             source: "Lead Finder",
             status: "New",
-            notes: `${l.mapsAddress ? `📍 ${l.mapsAddress}\n` : ""}${(l.insights ?? []).join(" · ")}${l.suggestedPitch ? ` | AI Pitch: ${l.suggestedPitch}` : ""}`,
+            notes: `${l.mapsAddress ? `${l.mapsAddress}\n` : ""}${(l.insights ?? []).join(" · ")}${l.suggestedPitch ? ` | AI Pitch: ${l.suggestedPitch}` : ""}`,
           },
         },
       });
-      toast.success(`เพิ่ม ${l.name} ลง Leads แล้ว ✅`);
+      toast.success(`เพิ่ม ${l.name} ลง Leads แล้ว`);
       navigate({ to: "/leads" });
     } catch (e: any) {
       toast.error(`เพิ่มไม่สำเร็จ: ${e?.message ?? "error"}`);
@@ -124,10 +120,10 @@ function LeadFinderPage() {
     <div>
       <PageHeader title="AI Lead Finder" />
 
-      <div className="grid grid-cols-1 gap-4 p-6 lg:grid-cols-[300px_1fr]">
-        {/* ===== Sidebar filters ===== */}
-        <aside className="lg:sticky lg:top-20 lg:h-[calc(100vh-6rem)] lg:overflow-y-auto">
-          <Card className="space-y-5 p-4 shadow-soft">
+      <div className="space-y-4 p-6">
+        {/* ===== Filter panel (full-width, multi-column) ===== */}
+        <Card className="p-5 shadow-soft">
+          <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             <div className="space-y-1">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Industry</p>
               <MultiSelect label="เลือกอุตสาหกรรม" options={INDUSTRIES} selected={industries} onChange={setIndustries} />
@@ -138,15 +134,6 @@ function LeadFinderPage() {
               <MultiSelect label="เลือกป้าย" options={screens.map((s) => s.name)} selected={billboards} onChange={setBillboards} />
             </div>
 
-            <div>
-              <div className="mb-1 flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Radius From Billboard</p>
-                <span className="text-xs font-medium text-fresco">{radiusKm} km</span>
-              </div>
-              <Slider min={1} max={50} step={1} value={[radiusKm]} onValueChange={([v]) => setRadiusKm(v)} />
-              <p className="mt-1 text-[10px] text-muted-foreground">ภายใน {radiusKm} กม. จากป้ายที่เลือก</p>
-            </div>
-
             <div className="space-y-1">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Company Size</p>
               <MultiSelect label="เลือกขนาดบริษัท" options={SIZES} selected={companySizes} onChange={setCompanySizes} />
@@ -154,19 +141,13 @@ function LeadFinderPage() {
 
             <div className="space-y-1">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Client Type</p>
-              <select value={clientType} onChange={(e) => { setClientType(e.target.value); if (e.target.value !== "Agency") setAgencyType(""); }} className="h-9 w-full rounded-lg border border-input bg-white px-2 text-sm">
-                <option value="">ทั้งหมด</option>
-                {CLIENT_TYPE_OPTS.map((x) => <option key={x} value={x}>{x}</option>)}
-              </select>
+              <SingleSelect label="ทั้งหมด" options={CLIENT_TYPE_OPTS} value={clientType} onChange={(v) => { setClientType(v); if (v !== "Agency") setAgencyType(""); }} />
             </div>
 
             {clientType === "Agency" && (
               <div className="space-y-1">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Agency Type</p>
-                <select value={agencyType} onChange={(e) => setAgencyType(e.target.value)} className="h-9 w-full rounded-lg border border-input bg-white px-2 text-sm">
-                  <option value="">ทุกประเภท Agency</option>
-                  {AGENCY_TYPES.map((x) => <option key={x} value={x}>{x}</option>)}
-                </select>
+                <SingleSelect label="ทุกประเภท Agency" options={AGENCY_TYPES} value={agencyType} onChange={setAgencyType} />
               </div>
             )}
 
@@ -180,55 +161,47 @@ function LeadFinderPage() {
               <MultiSelect label="เลือกแหล่งข้อมูล" options={SOURCES} selected={sources} onChange={setSources} />
             </div>
 
-            <div className="rounded-lg bg-gradient-ai p-3">
-              <p className="mb-2 flex items-center gap-1 text-xs font-semibold text-fresco"><Sparkles className="h-3.5 w-3.5" /> AI Filters</p>
-              <label className="mb-2 block space-y-1">
-                <span className="text-[11px] text-muted-foreground">Advertising Intent (ขั้นต่ำ)</span>
-                <select value={advertisingIntent} onChange={(e) => setAdvertisingIntent(e.target.value)} className="h-8 w-full rounded-md border border-input bg-white px-2 text-xs">
-                  <option value="">ทั้งหมด</option>
-                  {INTENT.map((x) => <option key={x} value={x}>{x}</option>)}
-                </select>
-              </label>
-              <label className="mb-2 block space-y-1">
-                <span className="text-[11px] text-muted-foreground">Expansion Signals</span>
-                <select value={expansionSignals} onChange={(e) => setExpansionSignals(e.target.value)} className="h-8 w-full rounded-md border border-input bg-white px-2 text-xs">
-                  <option value="">ทั้งหมด</option>
-                  {EXPANSION.map((x) => <option key={x} value={x}>{x}</option>)}
-                </select>
-              </label>
-              <div>
-                <div className="mb-1 flex items-center justify-between">
-                  <span className="text-[11px] text-muted-foreground">DOOH Fit Score (ขั้นต่ำ)</span>
-                  <span className="text-xs font-medium text-fresco">{minDoohFit}</span>
-                </div>
-                <Slider min={0} max={100} step={5} value={[minDoohFit]} onValueChange={([v]) => setMinDoohFit(v)} />
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Radius From Billboard</p>
+                <span className="text-xs font-medium text-fresco">{radiusKm} km</span>
               </div>
+              <Slider min={1} max={50} step={1} value={[radiusKm]} onValueChange={([v]) => setRadiusKm(v)} />
+              <p className="mt-1 text-[10px] text-muted-foreground">ภายใน {radiusKm} กม. จากป้ายที่เลือก</p>
             </div>
-          </Card>
-        </aside>
+          </div>
 
-        {/* ===== Main ===== */}
+          <div className="mt-5 flex justify-end border-t border-border/60 pt-4">
+            <Button onClick={find} disabled={searching} className="h-11 w-full bg-gradient-brand px-10 text-white hover:opacity-90 sm:w-auto">
+              <Sparkles className="h-4 w-4" /> {searching ? "น้องตาเทพกำลังค้นหา…" : "Find Leads"}
+            </Button>
+          </div>
+        </Card>
+
+        {/* ===== Results ===== */}
         <main className="space-y-4">
-          <Button onClick={find} disabled={searching} className="h-11 w-full bg-gradient-brand text-white hover:opacity-90">
-            <Sparkles className="h-4 w-4" /> {searching ? "น้องตาเทพกำลังค้นหา…" : "Find Leads"}
-          </Button>
-
           {searching && (
             <div className="space-y-1.5 rounded-lg border border-fresco/20 bg-gradient-ai p-3 text-xs text-fresco">
               <p className="animate-pulse">⌕ ค้นหาบริษัทที่เข้าเกณฑ์…</p>
-              <p className="animate-pulse">📊 วิเคราะห์ Advertising Intent + Growth Signals…</p>
-              <p className="animate-pulse">🎯 คำนวณ DOOH Fit + จับคู่ป้าย…</p>
-              <p className="animate-pulse">🏆 จัดอันดับโอกาส (AI Opportunity Ranking)…</p>
+              <p className="animate-pulse">วิเคราะห์ Advertising Intent + Growth Signals…</p>
+              <p className="animate-pulse">คำนวณ DOOH Fit + จับคู่ป้าย…</p>
+              <p className="animate-pulse">จัดอันดับโอกาส (AI Opportunity Ranking)…</p>
             </div>
           )}
 
           {!placesOn && results.length > 0 && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-              ⚠️ ยังไม่ได้ตั้งค่า <b>APIFY_API_TOKEN</b> ใน .env — เบอร์กลางเลยยังไม่ถูกดึงจาก Google Maps (โชว์ลิงก์ให้กดเช็กเองแทน) เพิ่ม token แล้ว Apify จะ scrape เบอร์จริงจาก Google Maps ให้อัตโนมัติ
-            </div>
+            <Alert status="warning">
+              ยังไม่ได้ตั้งค่า <b>APIFY_API_TOKEN</b> ใน .env — เบอร์กลางเลยยังไม่ถูกดึงจาก Google Maps (โชว์ลิงก์ให้กดเช็กเองแทน) เพิ่ม token แล้ว Apify จะ scrape เบอร์จริงจาก Google Maps ให้อัตโนมัติ
+            </Alert>
           )}
 
           {/* Results */}
+          {results.length > 0 && (
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold text-foreground">พบ {results.length} leads</p>
+              <span className="text-xs text-muted-foreground">· จัดอันดับโดย AI Opportunity Ranking</span>
+            </div>
+          )}
           <div className="space-y-4">
             {results.map((l, i) => (
               <Card key={i} className="overflow-hidden shadow-soft transition hover:shadow-card">
@@ -243,7 +216,7 @@ function LeadFinderPage() {
                           {l.nameVerified && <span className="rounded bg-emerald-50 px-1 text-[10px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200" title="ชื่อจริงจาก Google Maps">✓ Maps</span>}
                           <span className="rounded-full bg-fresco/10 px-2 py-0.5 text-xs font-bold text-fresco">#{i + 1} · {l.opportunityScore}</span>
                           {["Agency", "Reseller", "Partner"].includes(l.clientType) && (
-                            <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700 ring-1 ring-inset ring-violet-200">🤝 Partner {l.partnerPotentialScore}</span>
+                            <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700 ring-1 ring-inset ring-violet-200">Partner {l.partnerPotentialScore}</span>
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground">{l.industry} · {l.companySize} · {l.clientType}{l.agencyType ? ` · ${l.agencyType}` : ""}</p>
@@ -302,7 +275,7 @@ function LeadFinderPage() {
                     <div className="rounded-lg border border-border/60 p-3">
                       <p className="mb-1.5 flex items-center gap-1 text-xs font-semibold text-foreground"><MapPin className="h-3.5 w-3.5 text-fresco" /> Location Intelligence</p>
                       <ul className="space-y-0.5 text-xs text-muted-foreground">
-                        {l.mapsAddress && <li>📍 ที่อยู่ (Google Maps): <span className="text-foreground">{l.mapsAddress}</span></li>}
+                        {l.mapsAddress && <li>ที่อยู่ (Google Maps): <span className="text-foreground">{l.mapsAddress}</span></li>}
                         <li>ป้ายใกล้สุด: <b className="text-foreground">{l.nearestBillboard}</b> (~{l.distanceKm} กม.)</li>
                         <li>Traffic ประเมิน: {l.estTrafficVolume}</li>
                       </ul>
@@ -317,7 +290,7 @@ function LeadFinderPage() {
 
                   {/* Suggested pitch */}
                   <div className="mt-3 rounded-lg bg-fresco/5 p-3">
-                    <p className="text-xs font-semibold text-fresco">🎤 AI Suggested Pitch</p>
+                    <p className="text-xs font-semibold text-fresco">AI Suggested Pitch</p>
                     <p className="mt-0.5 text-sm text-slate-700">{l.suggestedPitch}</p>
                   </div>
 
@@ -360,13 +333,6 @@ function LeadFinderPage() {
                 </div>
               </Card>
             ))}
-
-            {!searching && results.length === 0 && (
-              <Card className="flex flex-col items-center gap-2 p-12 text-center shadow-soft">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-fresco/10"><Zap className="h-6 w-6 text-fresco" /></div>
-                <p className="font-medium">เริ่มค้นหา lead ด้วย AI</p>
-              </Card>
-            )}
           </div>
         </main>
       </div>

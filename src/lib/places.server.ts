@@ -15,6 +15,8 @@ export type PlacesPhone = {
   mapsUrl: string; // Google Maps link to the matched place
   matchedName: string; // official business name as listed on Google Maps
   address: string; // full address from Google Maps
+  lat?: number; // matched place latitude (for real distance filtering)
+  lng?: number; // matched place longitude
 };
 
 // compass/crawler-google-places — the standard Google Maps Scraper actor
@@ -76,11 +78,15 @@ async function scrapeBatch(queries: string[], names: string[]): Promise<(any | n
 
 const toPlace = (r: any): PlacesPhone | null => {
   if (!r?.title) return null;
+  const lat = r.location?.lat ?? r.lat;
+  const lng = r.location?.lng ?? r.lng;
   return {
     phone: r.phone || r.phoneUnformatted || "",
     mapsUrl: r.url || r.googleMapsUrl || "",
     matchedName: r.title,
     address: r.address || r.street || "",
+    lat: typeof lat === "number" ? lat : undefined,
+    lng: typeof lng === "number" ? lng : undefined,
   };
 };
 

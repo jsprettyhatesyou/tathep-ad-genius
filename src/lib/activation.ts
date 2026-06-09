@@ -104,10 +104,10 @@ export function computeHealth(c: Campaign, today: string): Health {
   return "Healthy";
 }
 
-export const HEALTH_META: Record<Health, { dot: string; label: string; cls: string }> = {
-  Healthy: { dot: "🟢", label: "Healthy", cls: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
-  "At Risk": { dot: "🟡", label: "At Risk", cls: "bg-amber-50 text-amber-700 ring-amber-200" },
-  Critical: { dot: "🔴", label: "Critical", cls: "bg-rose-50 text-rose-700 ring-rose-200" },
+export const HEALTH_META: Record<Health, { label: string; cls: string }> = {
+  Healthy: { label: "Healthy", cls: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  "At Risk": { label: "At Risk", cls: "bg-amber-50 text-amber-700 ring-amber-200" },
+  Critical: { label: "Critical", cls: "bg-rose-50 text-rose-700 ring-rose-200" },
 };
 
 /* ---------- AI Campaign Coordinator (heuristic, instant, ≤120 words) ---------- */

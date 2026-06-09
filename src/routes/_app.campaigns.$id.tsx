@@ -85,7 +85,7 @@ function ActivationDetail() {
   const setPerformance = (patch: Partial<Campaign["performance"]>) => save({ performance: { ...(c.performance ?? {}), ...patch } });
   const updPerf = (id: string, patch: Partial<InfluencerPerf>) => setPerf((c.influencerPerf ?? []).map((x) => x.id === id ? { ...x, ...patch } : x));
 
-  const genResults = () => { save(generateMockResults(c)); toast.success("จำลองผลลัพธ์แล้ว ✨ (mock data)"); };
+  const genResults = () => { save(generateMockResults(c)); toast.success("จำลองผลลัพธ์แล้ว (mock data)"); };
 
   const coord = coordinatorSummary(c, td);
   const blockers = (c.tasks ?? []).filter((t) => t.status === "Blocked");
@@ -106,9 +106,9 @@ function ActivationDetail() {
       <div className="space-y-4 p-8">
         {/* status strip */}
         <div className="flex flex-wrap items-center gap-2">
-          <span className={cn("rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset", isInternal ? "bg-violet-50 text-violet-700 ring-violet-200" : "bg-indigo-50 text-indigo-700 ring-indigo-200")}>{isInternal ? "🏠" : "🤝"} {typeLabel(c.campaignType)}</span>
+          <span className={cn("rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset", isInternal ? "bg-violet-50 text-violet-700 ring-violet-200" : "bg-indigo-50 text-indigo-700 ring-indigo-200")}>{typeLabel(c.campaignType)}</span>
           <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700 ring-1 ring-inset ring-slate-200">{c.status}</span>
-          <span className={cn("rounded-full px-2.5 py-1 text-xs ring-1 ring-inset", hm.cls)}>{hm.dot} {hm.label}</span>
+          <span className={cn("rounded-full px-2.5 py-1 text-xs ring-1 ring-inset", hm.cls)}>{hm.label}</span>
           <span className="text-xs text-muted-foreground">{c.start || "—"} → {c.end || "—"}</span>
           <span className="text-xs text-muted-foreground">· Owner: {c.owner || "—"}</span>
           <span className="ml-auto flex items-center gap-3 text-xs">
@@ -139,7 +139,7 @@ function ActivationDetail() {
                   <Field label="Client" value={company?.name ?? "—"} />
                   <Field label="Objective" value={c.objective ?? "—"} />
                   <Field label="Status" value={c.status} />
-                  <Field label="Health" value={`${hm.dot} ${hm.label}`} />
+                  <Field label="Health" value={hm.label} />
                   <Field label="Owner" value={c.owner ?? "—"} />
                   <Field label="Period" value={`${c.start || "—"} → ${c.end || "—"}`} />
                   <Field label="Budget" value={c.budget ? formatTHB(c.budget) : "—"} />
@@ -177,7 +177,7 @@ function ActivationDetail() {
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-rose-600">Blockers</p>
-                  {blockers.length ? <ul className="mt-1 space-y-1 text-sm text-slate-700">{blockers.map((b) => <li key={b.id}>⛔ {b.title || "(ไม่มีชื่องาน)"}</li>)}</ul> : <p className="mt-1 text-sm text-muted-foreground">ไม่มี blocker</p>}
+                  {blockers.length ? <ul className="mt-1 space-y-1 text-sm text-slate-700">{blockers.map((b) => <li key={b.id}>{b.title || "(ไม่มีชื่องาน)"}</li>)}</ul> : <p className="mt-1 text-sm text-muted-foreground">ไม่มี blocker</p>}
                 </div>
               </div>
             </Card>
@@ -450,7 +450,7 @@ function ActivationDetail() {
           <TabsContent value="ai" className="mt-4 space-y-4">
             {best && (
               <Card className="border-fresco/20 bg-gradient-ai p-4 shadow-soft">
-                <p className="text-xs font-semibold text-fresco">⭐ Best Performing Creator</p>
+                <p className="text-xs font-semibold text-fresco">Best Performing Creator</p>
                 <p className="mt-1 text-sm text-slate-700">{best.p.influencerName} ({best.p.platform}) — ER {best.d.engagementRate.toFixed(1)}%, score {best.d.score}/100{best.d.cpe ? `, cost/eng ฿${best.d.cpe.toFixed(1)}` : ""}</p>
               </Card>
             )}
