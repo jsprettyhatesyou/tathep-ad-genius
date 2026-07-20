@@ -18,8 +18,7 @@ import {
   MultiSelect,
   type Option,
 } from "@/components/crm/form-kit";
-import type { Company, Contact, Deal, Activity, Screen, Campaign, Influencer, Lead } from "@/lib/mock-data";
-import { ACTIVATION_STATUS, ACTIVATION_OBJECTIVES, CAMPAIGN_TYPES as ACTIVATION_TYPES, buildScreensPlan, buildInfluencersPlan, generateDefaultTasks } from "@/lib/activation";
+import type { Company, Contact, Deal, Activity, Screen, Lead } from "@/lib/mock-data";
 import {
   ACCOUNT_TYPES,
   CLIENT_TYPES,
@@ -42,14 +41,18 @@ import {
   STAGE_OPTIONS,
   TEAM_OPTIONS,
   PROVINCE_OPTIONS,
-  CAMPAIGN_STATUSES,
   SCREEN_AREA_TYPES,
   SCREEN_AVAILABILITY,
-  INF_PLATFORMS,
-  INF_CATEGORIES,
-  INF_CONTENT_STATUS,
-  CAMPAIGN_OBJECTIVES,
   LEAD_STATUSES,
+  DEAL_LEAD_SOURCES,
+  PAYMENT_METHODS,
+  PAYMENT_STATUSES,
+  REVENUE_TYPES,
+  DEAL_CAMPAIGN_STATUSES,
+  CREATIVE_STATUSES,
+  LOST_REASONS,
+  SCREEN_INVENTORY,
+  CONTRACT_TYPES,
 } from "@/lib/crm-options";
 import {
   createCompany,
@@ -62,10 +65,6 @@ import {
   updateActivity,
   createScreen,
   updateScreen,
-  createCampaign,
-  updateCampaign,
-  createInfluencer,
-  updateInfluencer,
   createLead,
   updateLead,
   convertLead as serverConvertLead,
@@ -114,7 +113,7 @@ async function run(fn: () => Promise<unknown>, onDone: () => void, setSaving: (v
   setSaving(true);
   try {
     await fn();
-    toast.success("บันทึกเรียบร้อย ✅");
+    toast.success("บันทึกเรียบร้อย");
     onDone();
   } catch (e: any) {
     toast.error(`บันทึกไม่สำเร็จ: ${e?.message ?? "error"}`);
@@ -289,7 +288,7 @@ function DealForm({ open, onOpenChange, onSaved, initial, companies, contacts, d
   const [f, setF] = useState<Partial<Deal>>(
     initial ?? {
       name: "", companyId: defaultCompanyId ?? "", contactId: "", clientType: "Direct Client",
-      stage: "New Lead", value: 0, tier: "Bronze", aiClass: "Cold", priority: "Medium",
+      stage: "Lead", value: 0, tier: "Bronze", aiClass: "Cold", priority: "Medium",
       campaignType: "Brand Awareness", duration: "1 Month", probability: 20,
       expectedClose: "", nextFollowUp: "", notes: "", screens: [],
     },
@@ -323,12 +322,23 @@ function DealForm({ open, onOpenChange, onSaved, initial, companies, contacts, d
       <NumberField label="มูลค่า (THB)" value={f.value ?? 0} onChange={(v) => set("value", v)} />
       <NumberField label="Probability (%)" value={f.probability ?? 0} onChange={(v) => set("probability", v)} />
       <SelectField label="Tier" value={f.tier ?? ""} onChange={(v) => set("tier", v)} options={LEAD_TIERS} />
-      <SelectField label="AI Class" value={f.aiClass ?? ""} onChange={(v) => set("aiClass", v)} options={AI_CLASSES} />
       <SelectField label="Priority" value={f.priority ?? ""} onChange={(v) => set("priority", v)} options={PRIORITIES} />
       <SelectField label="ประเภทแคมเปญ" value={f.campaignType ?? ""} onChange={(v) => set("campaignType", v)} options={CAMPAIGN_TYPES} />
       <SelectField label="ระยะเวลา" value={f.duration ?? ""} onChange={(v) => set("duration", v)} options={DURATIONS} />
+      <SelectField label="Lead Source" value={f.leadSource ?? ""} onChange={(v) => set("leadSource", v)} options={DEAL_LEAD_SOURCES} />
+      <SelectField label="Payment Method" value={f.paymentMethod ?? ""} onChange={(v) => set("paymentMethod", v)} options={PAYMENT_METHODS} />
+      <SelectField label="Payment Status" value={f.paymentStatus ?? ""} onChange={(v) => set("paymentStatus", v)} options={PAYMENT_STATUSES} />
+      <SelectField label="Revenue Type" value={f.revenueType ?? ""} onChange={(v) => set("revenueType", v)} options={REVENUE_TYPES} />
+      <SelectField label="Campaign Status" value={f.campaignStatus ?? ""} onChange={(v) => set("campaignStatus", v)} options={DEAL_CAMPAIGN_STATUSES} />
+      <SelectField label="Creative Status" value={f.creativeStatus ?? ""} onChange={(v) => set("creativeStatus", v)} options={CREATIVE_STATUSES} />
+      <SelectField label="Contract Type" value={f.contractType ?? ""} onChange={(v) => set("contractType", v)} options={CONTRACT_TYPES} />
+      <SelectField label="Lost Reason" value={f.lostReason ?? ""} onChange={(v) => set("lostReason", v)} options={LOST_REASONS} />
       <TextField label="คาดว่าปิด (YYYY-MM-DD)" type="date" value={f.expectedClose ?? ""} onChange={(v) => set("expectedClose", v)} />
       <TextField label="ติดตามครั้งถัดไป" type="date" value={f.nextFollowUp ?? ""} onChange={(v) => set("nextFollowUp", v)} />
+      <div className="sm:col-span-2">
+        <label className="mb-1 block text-xs font-medium text-muted-foreground">Screen Inventory (ป้าย)</label>
+        <MultiSelect label="เลือกป้าย" options={SCREEN_INVENTORY} selected={f.screens ?? []} onChange={(v) => set("screens", v)} />
+      </div>
       <TextareaField label="Notes" value={f.notes ?? ""} onChange={(v) => set("notes", v)} className="sm:col-span-2" />
     </Shell>
   );
@@ -457,122 +467,6 @@ function ScreenForm({ open, onOpenChange, onSaved, initial }: any) {
   );
 }
 
-/* ===================== Campaign (Brand Activation) ===================== */
-export function CampaignDialog({
-  open, onOpenChange, onSaved, initial, companies, screens = [], influencers = [],
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  onSaved: () => void;
-  initial?: Campaign | null;
-  companies: Company[];
-  screens?: Screen[];
-  influencers?: Influencer[];
-}) {
-  if (!open) return null;
-  return <CampaignForm key={initial?.id ?? "new"} open={open} onOpenChange={onOpenChange} onSaved={onSaved} initial={initial} companies={companies} screens={screens} influencers={influencers} />;
-}
-
-function CampaignForm({ open, onOpenChange, onSaved, initial, companies, screens, influencers }: any) {
-  const [f, setF] = useState<Partial<Campaign>>(
-    initial ?? {
-      name: "", companyId: "", campaignType: "CLIENT_ACTIVATION", status: "Planning", objective: "Brand Awareness", start: "", end: "",
-      budget: 0, owner: "", notes: "", screenIds: [], influencerIds: [],
-    },
-  );
-  const [saving, setSaving] = useState(false);
-  const set = (k: keyof Campaign, v: any) => setF((p) => ({ ...p, [k]: v }));
-
-  const screenOpts: Option[] = (screens as Screen[]).map((s) => ({ value: s.id, label: s.name }));
-  const infOpts: Option[] = (influencers as Influencer[]).map((i) => ({ value: i.id, label: i.name }));
-
-  const submit = () => {
-    if (!f.name?.trim()) return toast.error("กรุณากรอกชื่อแคมเปญ");
-    // build execution plans from selected screens/influencers (preserve existing workflow status)
-    const screensPlan = buildScreensPlan(f.screenIds ?? [], screens, f.start ?? "", f.end ?? "", f.screensPlan ?? []);
-    const influencersPlan = buildInfluencersPlan(f.influencerIds ?? [], influencers, f.influencersPlan ?? []);
-    const tasks = initial ? (f.tasks ?? []) : generateDefaultTasks(f.start ?? "", f.end ?? "", f.owner ?? "");
-    const payload = { ...f, screensPlan, influencersPlan, tasks };
-    const done = () => { onSaved(); onOpenChange(false); };
-    run(
-      () => initial
-        ? updateCampaign({ data: { id: initial.id, patch: payload } })
-        : createCampaign({ data: { campaign: payload } }),
-      done, setSaving,
-    );
-  };
-
-  return (
-    <Shell open={open} onOpenChange={onOpenChange} title={initial ? "แก้ไข Activation" : "สร้าง Brand Activation"} onSubmit={submit} saving={saving}>
-      <TextField label="Campaign Name" required value={f.name ?? ""} onChange={(v) => set("name", v)} className="sm:col-span-2" />
-      <SelectField label="Campaign Type" value={f.campaignType ?? "CLIENT_ACTIVATION"} onChange={(v) => set("campaignType", v)} options={[...ACTIVATION_TYPES]} className="sm:col-span-2" />
-      <Combobox label={f.campaignType === "INTERNAL_MARKETING" ? "Client (Tathep)" : "Client (แบรนด์ลูกค้า)"} value={f.companyId ?? ""} onChange={(v) => set("companyId", v)} options={companyOpts(companies)} placeholder="เลือกบริษัท…" searchPlaceholder="ค้นหาบริษัท…" />
-      <SelectField label="Objective" value={f.objective ?? ""} onChange={(v) => set("objective", v)} options={ACTIVATION_OBJECTIVES} />
-      <SelectField label="Status" value={(ACTIVATION_STATUS as readonly string[]).includes(f.status ?? "") ? (f.status as string) : "Planning"} onChange={(v) => set("status", v)} options={ACTIVATION_STATUS} />
-      <SelectField label="Owner" value={f.owner ?? ""} onChange={(v) => set("owner", v)} options={TEAM_OPTIONS} />
-      <TextField label="Start Date" type="date" value={f.start ?? ""} onChange={(v) => set("start", v)} />
-      <TextField label="End Date" type="date" value={f.end ?? ""} onChange={(v) => set("end", v)} />
-      <NumberField label="Budget (THB)" value={f.budget ?? 0} onChange={(v) => set("budget", v)} className="sm:col-span-2" />
-      <div className="sm:col-span-2"><label className="mb-1 block text-xs font-medium text-muted-foreground">Screens (ป้าย)</label><MultiSelect label="เลือกป้าย" options={screenOpts} selected={f.screenIds ?? []} onChange={(v) => set("screenIds", v)} /></div>
-      <div className="sm:col-span-2"><label className="mb-1 block text-xs font-medium text-muted-foreground">Influencers</label><MultiSelect label="เลือก influencer" options={infOpts} selected={f.influencerIds ?? []} onChange={(v) => set("influencerIds", v)} /></div>
-      <TextareaField label="Notes" value={f.notes ?? ""} onChange={(v) => set("notes", v)} className="sm:col-span-2" />
-      {!initial && <p className="sm:col-span-2 text-xs text-muted-foreground">✨ ระบบจะสร้าง task เริ่มต้น 13 ขั้น + booking plan ของป้าย/influencer ให้อัตโนมัติ</p>}
-    </Shell>
-  );
-}
-
-/* ===================== Influencer ===================== */
-export function InfluencerDialog({
-  open, onOpenChange, onSaved, initial,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  onSaved: () => void;
-  initial?: Influencer | null;
-}) {
-  if (!open) return null;
-  return <InfluencerForm key={initial?.id ?? "new"} open={open} onOpenChange={onOpenChange} onSaved={onSaved} initial={initial} />;
-}
-
-function InfluencerForm({ open, onOpenChange, onSaved, initial }: any) {
-  const [f, setF] = useState<Partial<Influencer>>(
-    initial ?? {
-      name: "", platform: "TikTok", followers: 0, category: "Marketing", province: "",
-      rateCard: "", avgViews: 0, engagementRate: 0, contentStatus: "Idle", brandsWorkedWith: [],
-    },
-  );
-  const [brandsText, setBrandsText] = useState((initial?.brandsWorkedWith ?? []).join(", "));
-  const [saving, setSaving] = useState(false);
-  const set = (k: keyof Influencer, v: any) => setF((p) => ({ ...p, [k]: v }));
-
-  const submit = () => {
-    if (!f.name?.trim()) return toast.error("กรุณากรอกชื่อ influencer");
-    const payload = { ...f, brandsWorkedWith: brandsText.split(",").map((s) => s.trim()).filter(Boolean) };
-    const done = () => { onSaved(); onOpenChange(false); };
-    run(
-      () => initial
-        ? updateInfluencer({ data: { id: initial.id, patch: payload } })
-        : createInfluencer({ data: { influencer: payload } }),
-      done, setSaving,
-    );
-  };
-
-  return (
-    <Shell open={open} onOpenChange={onOpenChange} title={initial ? "แก้ไข Influencer" : "เพิ่ม Influencer"} onSubmit={submit} saving={saving}>
-      <TextField label="ชื่อ" required value={f.name ?? ""} onChange={(v) => set("name", v)} />
-      <SelectField label="แพลตฟอร์ม" value={f.platform ?? ""} onChange={(v) => set("platform", v)} options={INF_PLATFORMS} />
-      <SelectField label="หมวดหมู่" value={f.category ?? ""} onChange={(v) => set("category", v)} options={INF_CATEGORIES} />
-      <SelectField label="จังหวัด" value={f.province ?? ""} onChange={(v) => set("province", v)} options={PROVINCE_OPTIONS} />
-      <NumberField label="Followers" value={f.followers ?? 0} onChange={(v) => set("followers", v)} />
-      <NumberField label="Avg Views" value={f.avgViews ?? 0} onChange={(v) => set("avgViews", v)} />
-      <NumberField label="Engagement Rate (%)" value={f.engagementRate ?? 0} onChange={(v) => set("engagementRate", v)} />
-      <SelectField label="Content Status" value={f.contentStatus ?? ""} onChange={(v) => set("contentStatus", v)} options={INF_CONTENT_STATUS} />
-      <TextField label="Rate Card" value={f.rateCard ?? ""} onChange={(v) => set("rateCard", v)} className="sm:col-span-2" />
-      <TextField label="แบรนด์ที่เคยร่วมงาน (คั่นด้วย ,)" value={brandsText} onChange={setBrandsText} className="sm:col-span-2" />
-    </Shell>
-  );
-}
-
 /* ===================== Lead ===================== */
 export function LeadDialog({
   open, onOpenChange, onSaved, initial,
@@ -654,7 +548,7 @@ export function ConvertLeadDialog({
           dealValue: createOpp ? dealValue : undefined,
         },
       });
-      toast.success(`แปลง "${lead.companyName}" เป็น Account สำเร็จ ✅`);
+      toast.success(`แปลง "${lead.companyName}" เป็น Account สำเร็จ`);
       onConverted(res.companyId);
     } catch (e: any) {
       toast.error(`Convert ไม่สำเร็จ: ${e?.message ?? "error"}`);
@@ -673,13 +567,11 @@ export function ConvertLeadDialog({
           {/* What will be created */}
           <div className="rounded-lg border border-fresco/20 bg-fresco/5 p-3 text-sm space-y-1.5">
             <p className="font-semibold text-fresco">จะสร้างให้อัตโนมัติ:</p>
-            <p className="flex items-center gap-2 text-foreground">
-              <span className="text-lg">🏢</span>
+            <p className="text-foreground">
               <span>Account — <strong>{lead.companyName}</strong></span>
             </p>
             {lead.contactName && (
-              <p className="flex items-center gap-2 text-foreground">
-                <span className="text-lg">👤</span>
+              <p className="text-foreground">
                 <span>Contact — <strong>{lead.contactName}</strong>{lead.jobTitle ? ` (${lead.jobTitle})` : ""}</span>
               </p>
             )}
@@ -695,7 +587,7 @@ export function ConvertLeadDialog({
             />
             <div>
               <p className="text-sm font-medium">สร้าง Opportunity ด้วย</p>
-              <p className="text-xs text-muted-foreground">ระบบจะสร้าง deal ใน Pipeline ที่ stage Qualifying</p>
+              <p className="text-xs text-muted-foreground">ระบบจะสร้าง deal ใน Pipeline ที่ stage Qualified</p>
             </div>
           </label>
 

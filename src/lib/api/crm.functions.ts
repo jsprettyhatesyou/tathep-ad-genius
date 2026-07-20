@@ -10,15 +10,11 @@ import {
   rowToScreen,
   rowToDeal,
   rowToActivity,
-  rowToCampaign,
-  rowToInfluencer,
   companyToRow,
   contactToRow,
   dealToRow,
   activityToRow,
   screenToRow,
-  campaignToRow,
-  influencerToRow,
 } from "../db-mappers";
 
 /* ============================ READS ============================ */
@@ -342,6 +338,15 @@ export const deleteCompany = createServerFn({ method: "POST" })
     return { id: data.id };
   });
 
+// Bulk delete accounts (list checkboxes). Cascades to related deals via FK.
+export const deleteCompanies = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ ids: z.array(z.string().min(1)).min(1) }))
+  .handler(async ({ data }) => {
+    const { error } = await getSupabaseAdmin().from("companies").delete().in("id", data.ids);
+    if (error) throw new Error(error.message);
+    return { ids: data.ids };
+  });
+
 /* ---------- contacts: update / delete ---------- */
 export const updateContact = createServerFn({ method: "POST" })
   .inputValidator(z.object({ id: z.string().min(1), patch: z.record(z.string(), z.any()) }))
@@ -362,6 +367,15 @@ export const deleteContact = createServerFn({ method: "POST" })
     const { error } = await getSupabaseAdmin().from("contacts").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { id: data.id };
+  });
+
+// Bulk delete contacts (list checkboxes).
+export const deleteContacts = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ ids: z.array(z.string().min(1)).min(1) }))
+  .handler(async ({ data }) => {
+    const { error } = await getSupabaseAdmin().from("contacts").delete().in("id", data.ids);
+    if (error) throw new Error(error.message);
+    return { ids: data.ids };
   });
 
 /* ---------- deals: create / delete ---------- */
@@ -441,92 +455,6 @@ export const deleteScreen = createServerFn({ method: "POST" })
     return { id: data.id };
   });
 
-/* ============================ CAMPAIGNS ============================ */
-export const listCampaigns = createServerFn({ method: "GET" }).handler(async () => {
-  const { data, error } = await getSupabaseAdmin()
-    .from("campaigns")
-    .select("*")
-    .order("created_at", { ascending: true });
-  if (error) throw new Error(error.message);
-  return (data ?? []).map(rowToCampaign);
-});
-
-export const createCampaign = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ campaign: z.record(z.string(), z.any()) }))
-  .handler(async ({ data }) => {
-    const { data: row, error } = await getSupabaseAdmin()
-      .from("campaigns")
-      .insert(campaignToRow(data.campaign as any))
-      .select("*")
-      .single();
-    if (error) throw new Error(error.message);
-    return rowToCampaign(row);
-  });
-
-export const updateCampaign = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ id: z.string().min(1), patch: z.record(z.string(), z.any()) }))
-  .handler(async ({ data }) => {
-    const { data: row, error } = await getSupabaseAdmin()
-      .from("campaigns")
-      .update(campaignToRow(data.patch as any))
-      .eq("id", data.id)
-      .select("*")
-      .single();
-    if (error) throw new Error(error.message);
-    return rowToCampaign(row);
-  });
-
-export const deleteCampaign = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ id: z.string().min(1) }))
-  .handler(async ({ data }) => {
-    const { error } = await getSupabaseAdmin().from("campaigns").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
-    return { id: data.id };
-  });
-
-/* ============================ INFLUENCERS ============================ */
-export const listInfluencers = createServerFn({ method: "GET" }).handler(async () => {
-  const { data, error } = await getSupabaseAdmin()
-    .from("influencers")
-    .select("*")
-    .order("followers", { ascending: false });
-  if (error) throw new Error(error.message);
-  return (data ?? []).map(rowToInfluencer);
-});
-
-export const createInfluencer = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ influencer: z.record(z.string(), z.any()) }))
-  .handler(async ({ data }) => {
-    const { data: row, error } = await getSupabaseAdmin()
-      .from("influencers")
-      .insert(influencerToRow(data.influencer as any))
-      .select("*")
-      .single();
-    if (error) throw new Error(error.message);
-    return rowToInfluencer(row);
-  });
-
-export const updateInfluencer = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ id: z.string().min(1), patch: z.record(z.string(), z.any()) }))
-  .handler(async ({ data }) => {
-    const { data: row, error } = await getSupabaseAdmin()
-      .from("influencers")
-      .update(influencerToRow(data.patch as any))
-      .eq("id", data.id)
-      .select("*")
-      .single();
-    if (error) throw new Error(error.message);
-    return rowToInfluencer(row);
-  });
-
-export const deleteInfluencer = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ id: z.string().min(1) }))
-  .handler(async ({ data }) => {
-    const { error } = await getSupabaseAdmin().from("influencers").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
-    return { id: data.id };
-  });
-
 /* ============================ LEADS (pre-qualification + convert) ============================ */
 export const listLeads = createServerFn({ method: "GET" }).handler(async () => {
   const { data, error } = await getSupabaseAdmin()
@@ -577,6 +505,15 @@ export const deleteLead = createServerFn({ method: "POST" })
     const { error } = await getSupabaseAdmin().from("leads").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { id: data.id };
+  });
+
+// Bulk delete leads (list checkboxes).
+export const deleteLeads = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ ids: z.array(z.string().min(1)).min(1) }))
+  .handler(async ({ data }) => {
+    const { error } = await getSupabaseAdmin().from("leads").delete().in("id", data.ids);
+    if (error) throw new Error(error.message);
+    return { ids: data.ids };
   });
 
 // Convert a qualified lead -> Account (company) + Contact (optional) + Opportunity (deal, optional).
@@ -662,7 +599,7 @@ export const convertLead = createServerFn({ method: "POST" })
             companyId: company.id,
             contactId: contactId,
             clientType: isAgency ? "Agency" : "Direct Client",
-            stage: "Qualifying",
+            stage: "Qualified",
             value: data.dealValue ?? 0,
             tier: company.tier,
             aiClass: company.aiClass,

@@ -3,9 +3,9 @@ import { useState } from "react";
 import { PageHeader } from "@/components/crm/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Upload, CheckCircle2, FileSpreadsheet, ArrowLeft, Users } from "lucide-react";
+import { Upload, CheckCircle2, FileSpreadsheet, ArrowLeft, Users, Check, ClipboardPaste } from "lucide-react";
 import { toast } from "sonner";
-import { importLeads } from "@/lib/api/crm.functions";
+import { createLeads } from "@/lib/api/crm.functions";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/leads/import")({
@@ -194,15 +194,36 @@ function ImportPage() {
     const built = buildLeads(raw, mapping);
     if (!built.length) { toast.error("ไม่มีแถวที่มีข้อมูล — ตรวจสอบการแมปอีกครั้ง"); return; }
     setLeads(built);
-    toast.success(`พร้อมนำเข้า ${built.length} รายการ ✅`);
+    toast.success(`พร้อมนำเข้า ${built.length} รายการ`);
   };
 
   const doImport = async () => {
     setImporting(true);
     try {
-      const res = await importLeads({ data: { leads } });
-      toast.success(`นำเข้าสำเร็จ — ${res.companiesCreated} บริษัทใหม่, ${res.contactsCreated} ผู้ติดต่อ ✅`);
-      navigate({ to: res.contactsCreated > 0 ? "/contacts" : "/companies" });
+      // Map each row → a Lead (pre-qualification). They land in the Leads list,
+      // not directly in Accounts — qualify there, then Convert → Account + Contact.
+      const rows = leads.map((l) => {
+        const contactName = [l.firstName, l.lastName].map((s) => s.trim()).filter(Boolean).join(" ").trim();
+        const ctype = (l.companyType ?? "").trim();
+        const isAgency = /agency|media|creative|digital/i.test(ctype);
+        return {
+          companyName: l.companyName?.trim() || contactName || "—",
+          contactName: contactName || undefined,
+          jobTitle: l.jobTitle || undefined,
+          phone: l.phone || undefined,
+          email: l.email || undefined,
+          lineId: l.lineId || undefined,
+          website: l.website || undefined,
+          province: l.province || undefined,
+          industry: l.industry || undefined,
+          clientType: ctype ? (isAgency ? "Agency" : "Direct Client") : undefined,
+          source: "Bulk Import",
+          status: "New",
+        };
+      });
+      const res = await createLeads({ data: { leads: rows } });
+      toast.success(`นำเข้า ${res.length} leads แล้ว — ไปคัดกรองที่หน้า Leads`);
+      navigate({ to: "/leads" });
     } catch (e: any) {
       toast.error(`นำเข้าไม่สำเร็จ: ${e?.message ?? "error"}`);
     } finally {
@@ -213,35 +234,66 @@ function ImportPage() {
   const withContacts = leads.filter((l) => l.firstName || l.lastName).length;
   const companyCount = new Set(leads.map((l) => l.companyName).filter(Boolean)).size;
 
+  // 1 = choose data · 2 = map columns · 3 = review & import
+  const step = leads.length > 0 ? 3 : raw ? 2 : 1;
+  const STEPS = [
+    { n: 1, label: "เลือกข้อมูล" },
+    { n: 2, label: "แมปคอลัมน์" },
+    { n: 3, label: "ตรวจสอบ & นำเข้า" },
+  ];
+
   return (
     <div>
       <PageHeader title="Import Leads"
         actions={<Button size="sm" variant="outline" onClick={loadSample}><FileSpreadsheet className="h-4 w-4" /> Use sample data</Button>} />
 
       <div className="space-y-6 p-8">
-        <div className="grid gap-4 lg:grid-cols-3">
-          <label
-            className="block cursor-pointer rounded-xl border-2 border-dashed border-border p-6 text-center shadow-soft transition hover:border-fresco/40 lg:col-span-2"
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => { e.preventDefault(); handleFile(e.dataTransfer.files?.[0]); }}
-          >
-            <input type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => { handleFile(e.target.files?.[0]); e.target.value = ""; }} />
-            <Upload className="mx-auto h-10 w-10 text-fresco" />
-            <p className="mt-3 font-medium">คลิกเพื่ออัปโหลด</p>
-          </label>
-
-          <Card className="p-5 shadow-soft">
-            <p className="text-sm font-semibold">Paste a list</p>
-            <textarea
-              rows={5}
-              value={pasted}
-              onChange={(e) => setPasted(e.target.value)}
-              className="mt-2 w-full rounded-lg border border-input bg-white p-2 text-sm focus:border-fresco focus:outline-none focus:ring-2 focus:ring-lake/30"
-              placeholder={"Firstname, Company, Email\nสมชาย, Pay Solution, somchai@x.com"}
-            />
-            <Button size="sm" variant="outline" className="mt-2 w-full" onClick={parsePasted}>Parse</Button>
-          </Card>
+        {/* Step indicator */}
+        <div className="flex items-center">
+          {STEPS.map((s, idx) => (
+            <div key={s.n} className="flex items-center">
+              <div className="flex items-center gap-2">
+                <div className={cn(
+                  "flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition",
+                  step > s.n ? "bg-fresco text-white" : step === s.n ? "bg-fresco text-white ring-4 ring-fresco/15" : "bg-slate-100 text-slate-400",
+                )}>
+                  {step > s.n ? <Check className="h-4 w-4" /> : s.n}
+                </div>
+                <span className={cn("text-sm font-medium", step >= s.n ? "text-foreground" : "text-muted-foreground")}>{s.label}</span>
+              </div>
+              {idx < STEPS.length - 1 && <div className={cn("mx-3 h-px w-10", step > s.n ? "bg-fresco" : "bg-border")} />}
+            </div>
+          ))}
         </div>
+
+        {/* Step 1 — choose data (upload or paste) */}
+        {step === 1 && (
+          <div className="grid items-stretch gap-4 md:grid-cols-2">
+            <label
+              className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-white p-8 text-center shadow-soft transition hover:border-fresco/50 hover:bg-fresco/5"
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => { e.preventDefault(); handleFile(e.dataTransfer.files?.[0]); }}
+            >
+              <input type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => { handleFile(e.target.files?.[0]); e.target.value = ""; }} />
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-fresco/10"><Upload className="h-6 w-6 text-fresco" /></div>
+              <p className="mt-1 font-semibold">ลากไฟล์มาวาง หรือคลิกเพื่ออัปโหลด</p>
+              <p className="text-xs text-muted-foreground">รองรับไฟล์ .csv · มี/ไม่มีหัวคอลัมน์ก็ได้ · ภาษาไทยอ่านออก</p>
+              <span className="mt-1 text-xs text-muted-foreground">หรือกด <span className="font-medium text-fresco">Use sample data</span> มุมขวาบนเพื่อลองดู</span>
+            </label>
+
+            <Card className="flex flex-col p-5 shadow-soft">
+              <p className="flex items-center gap-1.5 text-sm font-semibold"><ClipboardPaste className="h-4 w-4 text-fresco" /> หรือวางรายชื่อ (คั่นด้วยจุลภาค)</p>
+              <textarea
+                rows={6}
+                value={pasted}
+                onChange={(e) => setPasted(e.target.value)}
+                className="mt-2 flex-1 w-full rounded-lg border border-input bg-white p-2 text-sm focus:border-fresco focus:outline-none focus:ring-2 focus:ring-lake/30"
+                placeholder={"Firstname, Company, Email\nสมชาย, Pay Solution, somchai@x.com"}
+              />
+              <Button size="sm" variant="outline" className="mt-2 w-full" onClick={parsePasted}>Parse ข้อมูลที่วาง</Button>
+            </Card>
+          </div>
+        )}
 
         {/* Column mapping — spreadsheet-style table */}
         {raw && leads.length === 0 && (
@@ -318,7 +370,7 @@ function ImportPage() {
                   </Button>
                 )}
                 <Button size="sm" className="bg-fresco hover:bg-fresco/90" onClick={doImport} disabled={importing}>
-                  <CheckCircle2 className="h-4 w-4" /> {importing ? "กำลังนำเข้า…" : "นำเข้า CRM"}
+                  <CheckCircle2 className="h-4 w-4" /> {importing ? "กำลังนำเข้า…" : "นำเข้าเป็น Leads"}
                 </Button>
               </div>
             </div>
@@ -353,7 +405,7 @@ function ImportPage() {
               </table>
             </div>
             <div className="flex items-center gap-1.5 border-t border-border bg-fresco/5 p-4 text-sm text-fresco">
-              <CheckCircle2 className="h-4 w-4" /> บริษัทซ้ำจะถูกรวมอัตโนมัติ · ผู้ติดต่อจะถูกผูกกับบริษัท · source = "Bulk Import"
+              <CheckCircle2 className="h-4 w-4" /> นำเข้าเป็น <b>Leads</b> (status: New) · คัดกรองที่หน้า Leads แล้วกด <b>Convert</b> เพื่อสร้าง Account + Contact · source = "Bulk Import"
             </div>
           </Card>
         )}

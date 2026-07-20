@@ -4,12 +4,11 @@ import { PageHeader } from "@/components/crm/page-header";
 import { TierBadge, AIClassBadge, PriorityDot } from "@/components/crm/badges";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AIPanel } from "@/components/crm/ai-panel";
-import { STAGES, STAGE_EMOJI, formatTHB, type Deal, type Stage } from "@/lib/mock-data";
+import { STAGES, formatTHB2, type Deal, type Stage } from "@/lib/mock-data";
 import { listDeals, listCompanies, listScreens, listContacts, updateDealStage, deleteDeal } from "@/lib/api/crm.functions";
 import { DealDialog } from "@/components/crm/entity-dialogs";
+import { DealDocumentsTab } from "@/components/crm/deal-documents";
 import { DeleteConfirm } from "@/components/crm/form-kit";
-import { generatePitch } from "@/lib/api/ai.functions";
 import { Plus, Calendar, Filter, X, Building2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -89,7 +88,6 @@ function PipelinePage() {
     <div>
       <PageHeader
         title="Sales Pipeline"
-        subtitle="Drag deals across stages — total pipeline & deal counts update live"
         actions={
           <>
             <Button variant="outline" size="sm"><Filter className="h-4 w-4" /> Filters</Button>
@@ -102,7 +100,7 @@ function PipelinePage() {
         <Tabs value={view} onValueChange={(v) => setView(v as View)}>
           <TabsList className="bg-slate-100">
             <TabsTrigger value="All">All deals</TabsTrigger>
-            <TabsTrigger value="Hot">🔥 Hot Leads</TabsTrigger>
+            <TabsTrigger value="Hot">Hot Leads</TabsTrigger>
             <TabsTrigger value="ThisWeek">This Week</TabsTrigger>
             <TabsTrigger value="Agency">Agency</TabsTrigger>
             <TabsTrigger value="Direct">Direct Client</TabsTrigger>
@@ -124,11 +122,11 @@ function PipelinePage() {
                     <div className="rounded-t-xl border border-b-0 border-border bg-white px-3 py-2.5">
                       <div className="flex items-center justify-between">
                         <p className="text-sm font-semibold text-foreground">
-                          <span className="mr-1">{STAGE_EMOJI[stage]}</span>{stage}
+                          {stage}
                         </p>
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{cards.length}</span>
                       </div>
-                      <p className="mt-0.5 text-xs font-medium text-fresco">{formatTHB(total)}</p>
+                      <p className="mt-0.5 text-xs font-medium text-fresco">{formatTHB2(total)}</p>
                     </div>
                     <div className="min-h-[400px] space-y-2 rounded-b-xl border border-t-0 border-border bg-slate-50/60 p-2">
                       {cards.map((d) => (
@@ -145,14 +143,16 @@ function PipelinePage() {
                           </div>
                           <p className="truncate text-xs text-muted-foreground">{getCompany(d.companyId)?.name}</p>
                           <div className="mt-2.5 flex items-center justify-between">
-                            <p className="text-sm font-bold text-fresco">{formatTHB(d.value)}</p>
+                            <p className="text-sm font-bold text-fresco">{formatTHB2(d.value)}</p>
                             <div className="flex items-center gap-1.5">
                               <TierBadge tier={d.tier} />
                             </div>
                           </div>
                           <div className="mt-2 flex items-center justify-between border-t border-border/60 pt-2">
                             <AIClassBadge value={d.aiClass} />
-                            <p className="text-[10px] text-muted-foreground"><Calendar className="mr-0.5 inline h-3 w-3" />{d.nextFollowUp.slice(5)}</p>
+                            {d.nextFollowUp && (
+                              <p className="text-[10px] text-muted-foreground"><Calendar className="mr-0.5 inline h-3 w-3" />{d.nextFollowUp.slice(5)}</p>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -192,22 +192,9 @@ function PipelinePage() {
 }
 
 function DealSlideOver({ deal, onClose, onEdit, onDelete }: { deal: Deal; onClose: () => void; onEdit: () => void; onDelete: () => void }) {
-  const { companies, screens: SCREENS } = Route.useLoaderData();
+  const { companies, screens: SCREENS, contacts } = Route.useLoaderData();
   const company = companies.find((c) => c.id === deal.companyId);
-  const [tab, setTab] = useState("research");
-  const [pitch, setPitch] = useState<{ pitch: string; objections: { objection: string; response: string }[]; talkingPoints: string[]; lineOpener: string } | null>(null);
-  const [pitchLoading, setPitchLoading] = useState(false);
-
-  const runPitch = async () => {
-    setPitchLoading(true);
-    try {
-      setPitch(await generatePitch({ data: { dealId: deal.id } }) as any);
-    } catch (e: any) {
-      toast.error(`น้องตาเทพคิดไม่ออก: ${e?.message ?? "error"}`);
-    } finally {
-      setPitchLoading(false);
-    }
-  };
+  const contact = contacts.find((c) => c.id === deal.contactId);
 
   return (
     <>
@@ -232,7 +219,7 @@ function DealSlideOver({ deal, onClose, onEdit, onDelete }: { deal: Deal; onClos
           <div className="grid grid-cols-3 gap-4 rounded-xl border border-border bg-slate-50/60 p-4 text-sm">
             <div>
               <p className="text-xs uppercase tracking-wide text-muted-foreground">Value</p>
-              <p className="mt-1 text-lg font-semibold text-fresco">{formatTHB(deal.value)}</p>
+              <p className="mt-1 text-lg font-semibold text-fresco">{formatTHB2(deal.value)}</p>
             </div>
             <div>
               <p className="text-xs uppercase tracking-wide text-muted-foreground">Probability</p>
@@ -265,88 +252,12 @@ function DealSlideOver({ deal, onClose, onEdit, onDelete }: { deal: Deal; onClos
             </div>
           </div>
 
-          <Tabs value={tab} onValueChange={setTab}>
-            <TabsList className="grid w-full grid-cols-4 bg-slate-100">
-              <TabsTrigger value="research">Research</TabsTrigger>
-              <TabsTrigger value="classify">Classify</TabsTrigger>
-              <TabsTrigger value="strategy">Strategy</TabsTrigger>
-              <TabsTrigger value="talking">Talking Points</TabsTrigger>
+          <Tabs value="docs">
+            <TabsList className="grid w-full grid-cols-1 bg-slate-100">
+              <TabsTrigger value="docs">เอกสาร</TabsTrigger>
             </TabsList>
-            <TabsContent value="research" className="mt-4">
-              <AIPanel subtitle="Company Research" onGenerate={() => {}}>
-                <p>{company?.summary}</p>
-                <p className="mt-2 text-xs text-slate-500">Industry: {company?.industry} · Province: {company?.province} · Size: {company?.size}</p>
-              </AIPanel>
-            </TabsContent>
-            <TabsContent value="classify" className="mt-4">
-              <AIPanel subtitle="Lead Classification" onGenerate={() => {}}>
-                <div className="flex flex-wrap items-center gap-2">
-                  <TierBadge tier={deal.tier} />
-                  <AIClassBadge value={deal.aiClass} />
-                  <span className="text-xs text-slate-500">Score {company?.leadScore}/100</span>
-                </div>
-                <ul className="mt-3 space-y-1 text-xs">
-                  <li>✓ Budget Fit — {company?.annualBudget}</li>
-                  <li>✓ Contact quality — Decision maker identified</li>
-                  <li>✓ Engagement — {company?.aiClass === "Hot" ? "เปิดอ่าน proposal 4 ครั้ง" : "ระดับปานกลาง"}</li>
-                  <li>✓ Timeline — close ภายใน {deal.expectedClose}</li>
-                </ul>
-              </AIPanel>
-            </TabsContent>
-            <TabsContent value="strategy" className="mt-4">
-              <AIPanel
-                subtitle="Pitch & Objection Handling · น้องตาเทพ"
-                actionLabel={pitch ? "Regenerate" : "Generate"}
-                loading={pitchLoading}
-                onGenerate={runPitch}
-              >
-                {pitch ? (
-                  <>
-                    <p className="font-medium text-fresco">Pitch angle:</p>
-                    <p className="whitespace-pre-wrap">{pitch.pitch}</p>
-                    <p className="mt-3 font-medium text-fresco">Objection handling:</p>
-                    <ul className="list-disc space-y-1.5 pl-4 text-xs">
-                      {pitch.objections.map((o, i) => (
-                        <li key={i}><b>"{o.objection}"</b> — {o.response}</li>
-                      ))}
-                    </ul>
-                  </>
-                ) : (
-                  <p className="text-slate-600">กด "Generate" ให้น้องตาเทพร่าง pitch + วิธีรับมือข้อโต้แย้ง จากข้อมูลดีลและลูกค้าจริง</p>
-                )}
-              </AIPanel>
-            </TabsContent>
-            <TabsContent value="talking" className="mt-4">
-              <AIPanel
-                subtitle="Talking Points & LINE Opener · น้องตาเทพ"
-                actionLabel={pitch ? "Regenerate" : "Generate"}
-                loading={pitchLoading}
-                onGenerate={runPitch}
-              >
-                {pitch ? (
-                  <>
-                    <p className="font-medium text-fresco">Talking points:</p>
-                    <ul className="list-disc space-y-1 pl-4 text-xs">
-                      {pitch.talkingPoints.map((t, i) => <li key={i}>{t}</li>)}
-                    </ul>
-                    <p className="mt-3 font-medium text-fresco">เปิดทาง LINE:</p>
-                    <p className="rounded-md bg-white/60 px-3 py-2 text-xs italic">{pitch.lineOpener}</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="mb-2 text-slate-600">จอที่ว่างแนะนำสำหรับลูกค้ารายนี้:</p>
-                    <ul className="space-y-1.5 text-xs">
-                      {SCREENS.slice(0, 3).map((s) => (
-                        <li key={s.id} className="flex items-center justify-between rounded-md bg-white/60 px-3 py-2">
-                          <span><b>{s.name}</b> · {s.province}</span>
-                          <span className="text-fresco font-medium">{formatTHB(s.rateDaily)}/day</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <p className="mt-2 text-xs text-slate-500">กด "Generate" ให้น้องตาเทพแนะนำ talking points + ข้อความเปิด LINE</p>
-                  </>
-                )}
-              </AIPanel>
+            <TabsContent value="docs" className="mt-4">
+              <DealDocumentsTab deal={deal} company={company} contact={contact} screens={SCREENS} />
             </TabsContent>
           </Tabs>
 

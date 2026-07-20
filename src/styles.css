@@ -5,12 +5,13 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Tathep CRM Design System
+ * Tathep CRM — TapTap Design System
  *
- * Brand:
- *   Fresco Blue   #045F7F  (primary)
- *   Lake Thun     #45C6E7  (secondary / accents)
- *   Active tint   #f0fafd
+ * Brand (remapped to TapTap tokens, applied app-wide):
+ *   Primary 700   #00ABB6  (--fresco · primary, buttons, active)
+ *   Primary 500   #47CFD6  (--lake · accents, rings)
+ *   Active tint   #EEFCFC  (Primary 100 · nav active bg)
+ *   Auxiliary     #FE632F  (coral accent)
  */
 
 @theme inline {
@@ -48,6 +49,107 @@
   --color-lake: var(--lake);
   --color-nav-active: var(--nav-active);
 
+  /* ── TapTap Design System (teal primary + coral auxiliary) ──
+     Sourced from the TapTap Developers Figma tokens. Additive — does not
+     replace the fresco/lake brand; currently applied on the Dashboard. */
+  --color-taptap-50:  #F9FFFF;
+  --color-taptap-100: #EEFCFC;
+  --color-taptap-200: #DFF7F7;
+  --color-taptap-300: #B0EBEC;
+  --color-taptap-400: #7DDDE1;
+  --color-taptap-500: #47CFD6;
+  --color-taptap-600: #15C5CE;
+  --color-taptap-700: #00ABB6;
+
+  --color-taptap-aux-50:  #FFFCFC;
+  --color-taptap-aux-100: #FFF6F3;
+  --color-taptap-aux-200: #FFF2EE;
+  --color-taptap-aux-300: #FFE1D6;
+  --color-taptap-aux-400: #FFC8B6;
+  --color-taptap-aux-500: #FFA487;
+  --color-taptap-aux-600: #FF8156;
+  --color-taptap-aux-700: #FE632F;
+
+  /* Neutral scale (full) */
+  --color-taptap-neutral-50:  #FAFAFA;
+  --color-taptap-neutral-100: #F5F5F5;
+  --color-taptap-neutral-200: #EEEEEE;
+  --color-taptap-neutral-300: #E1E1E1;
+  --color-taptap-neutral-400: #CACACA;
+  --color-taptap-neutral-500: #8E8E8E;
+  --color-taptap-neutral-600: #4B4B4B;
+  --color-taptap-neutral-700: #1F1F1F;
+  /* Neutral aliases (semantic names used in components) */
+  --color-taptap-ink:    #1F1F1F;  /* Neutral 700 */
+  --color-taptap-muted:  #8E8E8E;  /* Neutral 500 */
+  --color-taptap-line:   #EEEEEE;  /* Neutral 200 */
+  --color-taptap-canvas: #FAFAFA;  /* Neutral 50  */
+
+  /* Semantic scales (full 50→700) */
+  --color-tt-danger-50:  #FFFBFB;
+  --color-tt-danger-100: #FEF2F2;
+  --color-tt-danger-200: #FFEBEE;
+  --color-tt-danger-300: #FFCCD2;
+  --color-tt-danger-400: #F49898;
+  --color-tt-danger-500: #EB6F70;
+  --color-tt-danger-600: #F64C4C;
+  --color-tt-danger-700: #EC2D30;
+
+  --color-tt-warning-50:  #FFFDFA;
+  --color-tt-warning-100: #FFF9EE;
+  --color-tt-warning-200: #FFF7E1;
+  --color-tt-warning-300: #FFEAB3;
+  --color-tt-warning-400: #FFDD82;
+  --color-tt-warning-500: #FFC62B;
+  --color-tt-warning-600: #FFAD0D;
+  --color-tt-warning-700: #FE9B0E;
+
+  --color-tt-success-50:  #FBFEFC;
+  --color-tt-success-100: #F2FAF6;
+  --color-tt-success-200: #E5F5EC;
+  --color-tt-success-300: #C0E5D1;
+  --color-tt-success-400: #97D4B4;
+  --color-tt-success-500: #6BC497;
+  --color-tt-success-600: #47B881;
+  --color-tt-success-700: #0C9D61;
+
+  --color-tt-info-50:  #F8FCFF;
+  --color-tt-info-100: #F1F8FF;
+  --color-tt-info-200: #E4F2FF;
+  --color-tt-info-300: #BDDDFF;
+  --color-tt-info-400: #93C8FF;
+  --color-tt-info-500: #4BA1FF;
+  --color-tt-info-600: #3B82F6;
+  --color-tt-info-700: #3A70E2;
+
+  /* Semantic shorthands (600 level) */
+  --color-taptap-success: #47B881;
+  --color-taptap-warning: #FFAD0D;
+  --color-taptap-danger:  #F64C4C;
+  --color-taptap-info:    #3B82F6;
+
+  /* Chart palette (TapTap Standard) */
+  --color-tt-chart-1: #4887F6;
+  --color-tt-chart-2: #59C3CF;
+  --color-tt-chart-3: #F1CD49;
+  --color-tt-chart-4: #FE632F;
+  --color-tt-chart-5: #E2635E;
+
+  /* Elevation tokens (TapTap) */
+  --shadow-elev-1: 0 2px 4px 0 rgb(0 0 0 / 0.04), 0 1px 1px 0 rgb(0 0 0 / 0.02);
+  --shadow-elev-2: 0 4px 10px 0 rgb(0 0 0 / 0.08), 0 1px 4px 0 rgb(0 0 0 / 0.04);
+  --shadow-elev-3: 0 8px 32px 0 rgb(0 0 0 / 0.08), 0 2px 20px 0 rgb(0 0 0 / 0.04);
+  --shadow-elev-4: 0 24px 60px 0 rgb(0 0 0 / 0.12), 0 8px 20px 0 rgb(0 0 0 / 0.06);
+
+  /* Type scale (TapTap) — sizes/line-heights; family stays Inter + IBM Plex Sans Thai */
+  --text-h1: 1.875rem;       --text-h1--line-height: 2.375rem;   /* 30 / 38 */
+  --text-h2: 1.5rem;         --text-h2--line-height: 2rem;       /* 24 / 32 */
+  --text-h3: 1.25rem;        --text-h3--line-height: 1.75rem;    /* 20 / 28 */
+  --text-title: 1.125rem;    --text-title--line-height: 1.625rem;/* 18 / 26 */
+  --text-subtitle: 1rem;     --text-subtitle--line-height: 1.5rem;/* 16 / 24 */
+  --text-body: 0.875rem;     --text-body--line-height: 1.375rem; /* 14 / 22 */
+  --text-caption: 0.75rem;   --text-caption--line-height: 1.125rem;/* 12 / 18 */
+
   --color-tier-platinum: var(--tier-platinum);
   --color-tier-gold: var(--tier-gold);
   --color-tier-silver: var(--tier-silver);
@@ -72,28 +174,33 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  --shadow-soft: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06);
-  --shadow-card: 0 1px 3px 0 rgb(15 23 42 / 0.05), 0 4px 12px -2px rgb(15 23 42 / 0.04);
-  --shadow-elevated: 0 10px 30px -10px color-mix(in oklab, var(--fresco) 25%, transparent);
+  --shadow-soft: var(--shadow-elev-1);
+  --shadow-card: var(--shadow-elev-2);
+  --shadow-elevated: 0 10px 30px -10px color-mix(in oklab, var(--fresco) 35%, transparent);
 
-  --gradient-brand: linear-gradient(135deg, var(--fresco) 0%, var(--lake) 100%);
+  --gradient-brand: linear-gradient(135deg, #15C5CE 0%, #00ABB6 100%);
   --gradient-ai: linear-gradient(135deg, color-mix(in oklab, var(--fresco) 8%, white) 0%, color-mix(in oklab, var(--lake) 12%, white) 100%);
+
+  /* TapTap gradients */
+  --gradient-taptap: linear-gradient(135deg, #15C5CE 0%, #00ABB6 100%);
+  --gradient-taptap-soft: linear-gradient(135deg, #EEFCFC 0%, #DFF7F7 100%);
 }
 
 :root {
-  --radius: 0.625rem;
+  /* TapTap radius scale → sm 4 · md 6 · lg 8 · xl 12 · 2xl 16 (px) */
+  --radius: 0.5rem;
 
-  /* Brand colors converted to oklch */
-  --fresco: oklch(0.45 0.09 220);          /* #045F7F */
-  --lake: oklch(0.81 0.13 215);            /* #45C6E7 */
-  --nav-active: oklch(0.98 0.015 215);     /* #f0fafd */
+  /* Brand colors — TapTap palette */
+  --fresco: #15C5CE;                       /* TapTap Primary 600 (brand) */
+  --lake: #47CFD6;                         /* TapTap Primary 500 */
+  --nav-active: #EEFCFC;                    /* TapTap Primary 100 */
 
   --background: oklch(1 0 0);
-  --foreground: oklch(0.18 0.02 250);
+  --foreground: #1F1F1F;                    /* TapTap Neutral 700 */
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0.02 250);
+  --card-foreground: #1F1F1F;
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0.02 250);
+  --popover-foreground: #1F1F1F;
 
   --primary: var(--fresco);
   --primary-foreground: oklch(1 0 0);
@@ -103,20 +210,20 @@
   --secondary-foreground: oklch(0.22 0.03 240);
 
   --muted: oklch(0.97 0.005 240);
-  --muted-foreground: oklch(0.55 0.025 250);
+  --muted-foreground: #8E8E8E;             /* TapTap Neutral 500 */
 
-  --accent: oklch(0.95 0.025 215);
+  --accent: #DFF7F7;                        /* TapTap Primary 200 */
   --accent-foreground: var(--fresco);
 
-  --destructive: oklch(0.62 0.22 27);
+  --destructive: #F64C4C;                   /* TapTap Danger */
   --destructive-foreground: oklch(1 0 0);
 
-  --success: oklch(0.65 0.16 155);
-  --warning: oklch(0.78 0.16 75);
-  --info: oklch(0.65 0.15 230);
+  --success: #47B881;                       /* TapTap Success */
+  --warning: #FFAD0D;                       /* TapTap Warning */
+  --info: #3B82F6;                          /* TapTap Info */
 
-  --border: oklch(0.94 0.006 245);
-  --input: oklch(0.94 0.006 245);
+  --border: #EEEEEE;                        /* TapTap Neutral 200 */
+  --input: #EEEEEE;
   --ring: var(--lake);
 
   /* Tier colors */
@@ -125,12 +232,12 @@
   --tier-silver: oklch(0.65 0.02 250);
   --tier-bronze: oklch(0.65 0.15 50);
 
-  /* Chart palette: fresco + lake family */
-  --chart-1: oklch(0.45 0.09 220);
-  --chart-2: oklch(0.81 0.13 215);
-  --chart-3: oklch(0.6 0.2 295);
-  --chart-4: oklch(0.78 0.16 80);
-  --chart-5: oklch(0.65 0.16 155);
+  /* Chart palette: TapTap Standard */
+  --chart-1: #4887F6;
+  --chart-2: #59C3CF;
+  --chart-3: #F1CD49;
+  --chart-4: #FE632F;
+  --chart-5: #E2635E;
 
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.3 0.02 250);
@@ -138,7 +245,7 @@
   --sidebar-primary-foreground: oklch(1 0 0);
   --sidebar-accent: var(--nav-active);
   --sidebar-accent-foreground: var(--fresco);
-  --sidebar-border: oklch(0.94 0.006 245);
+  --sidebar-border: #EEEEEE;
   --sidebar-ring: var(--lake);
 }
 
@@ -169,6 +276,12 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
+  /* TapTap Body as the app baseline (14/22) — keeps untyped text consistent
+     across pages; rem-based Tailwind utilities are unaffected (root stays 16px) */
+  body {
+    font-size: var(--taptap-text-body, 0.875rem);
+    line-height: var(--taptap-leading-body, 1.375rem);
+  }
   .font-thai { font-family: var(--font-thai); }
 
   /* Custom scrollbars */
@@ -180,6 +293,8 @@
 @layer utilities {
   .bg-gradient-brand { background-image: var(--gradient-brand); }
   .bg-gradient-ai { background-image: var(--gradient-ai); }
+  .bg-gradient-taptap { background-image: var(--gradient-taptap); }
+  .bg-gradient-taptap-soft { background-image: var(--gradient-taptap-soft); }
   .shadow-soft { box-shadow: var(--shadow-soft); }
   .shadow-card { box-shadow: var(--shadow-card); }
   .shadow-elevated { box-shadow: var(--shadow-elevated); }

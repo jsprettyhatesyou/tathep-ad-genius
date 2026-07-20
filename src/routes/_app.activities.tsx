@@ -62,7 +62,7 @@ function ActivitiesPage() {
 
   return (
     <div>
-      <PageHeader title="Activities" subtitle="Calls, meetings, LINE & site visits — ทุก touchpoint ของทีมขาย"
+      <PageHeader title="Activities"
         actions={<Button size="sm" className="bg-fresco hover:bg-fresco/90" onClick={() => setDialog({ open: true, initial: null })}><Plus className="h-4 w-4" /> Log Activity</Button>} />
 
       <div className="p-8">

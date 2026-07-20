@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/crm/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { formatTHB, formatNumber, type Screen } from "@/lib/mock-data";
+import { formatTHB, formatTHB2, formatNumber, type Screen } from "@/lib/mock-data";
 import { listScreens, deleteScreen } from "@/lib/api/crm.functions";
 import { ScreenDialog } from "@/components/crm/entity-dialogs";
 import { DeleteConfirm } from "@/components/crm/form-kit";
@@ -52,7 +52,7 @@ function InventoryPage() {
     <div>
       <PageHeader
         title="Billboard Inventory"
-        subtitle={`${screens.length} LED screens across ${provinces.length} provinces — Smart DOOH network`}
+        subtitle={`${screens.length} LED screens`}
         actions={<Button size="sm" className="bg-fresco hover:bg-fresco/90" onClick={() => setDialog({ open: true, initial: null })}><Plus className="h-4 w-4" /> New Screen</Button>}
       />
       <div className="p-8">
@@ -103,7 +103,7 @@ function InventoryPage() {
                       <td className="px-4 py-3 text-muted-foreground">{s.province}</td>
                       <td className="px-4 py-3 text-muted-foreground">{s.size}</td>
                       <td className="px-4 py-3 text-muted-foreground">{s.resolution}</td>
-                      <td className="px-4 py-3 text-right font-semibold text-fresco">{formatTHB(s.ratePerSecond ?? 0)}/วิ</td>
+                      <td className="px-4 py-3 text-right font-semibold text-fresco">{formatTHB2(s.ratePerSecond ?? 0)}/วิ</td>
                       <td className="px-4 py-3 text-right">{formatNumber(s.dailyImpressions)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
@@ -152,7 +152,7 @@ function ScreenCard({ s, onEdit, onDelete }: { s: Screen; onEdit: () => void; on
         <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
           <div className="rounded bg-slate-50 p-2">
             <p className="text-muted-foreground">เรท/วินาที</p>
-            <p className="mt-0.5 font-semibold text-fresco">{formatTHB(s.ratePerSecond ?? 0)}/วิ</p>
+            <p className="mt-0.5 font-semibold text-fresco">{formatTHB2(s.ratePerSecond ?? 0)}/วิ</p>
           </div>
           <div className="rounded bg-slate-50 p-2">
             <p className="text-muted-foreground">Daily impr.</p>

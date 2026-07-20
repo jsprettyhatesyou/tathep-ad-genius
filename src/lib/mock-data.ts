@@ -7,36 +7,29 @@ export type AIClass = "Hot" | "Warm" | "Cold" | "Agency Upsell";
 export type Priority = "Urgent" | "High" | "Medium" | "Low";
 export type AccountStatus = "Prospect" | "Active" | "Recurring" | "Inactive" | "Lost";
 export type Stage =
-  | "New Lead"
-  | "Qualifying"
-  | "Needs Analysis"
+  | "Lead"
+  | "Qualified"
   | "Proposal Sent"
   | "Negotiation"
+  | "Waiting Payment"
+  | "Campaign Setup"
+  | "Running"
   | "Won"
   | "Lost"
   | "On Hold";
 
 export const STAGES: Stage[] = [
-  "New Lead",
-  "Qualifying",
-  "Needs Analysis",
+  "Lead",
+  "Qualified",
   "Proposal Sent",
   "Negotiation",
+  "Waiting Payment",
+  "Campaign Setup",
+  "Running",
   "Won",
   "Lost",
   "On Hold",
 ];
-
-export const STAGE_EMOJI: Record<Stage, string> = {
-  "New Lead": "🆕",
-  Qualifying: "🔍",
-  "Needs Analysis": "📝",
-  "Proposal Sent": "📄",
-  Negotiation: "💬",
-  Won: "✅",
-  Lost: "❌",
-  "On Hold": "⏸",
-};
 
 export interface Company {
   id: string;
@@ -59,6 +52,8 @@ export interface Company {
   source: string;
   tags: string[];
   summary: string;
+  salesStrategy?: string; // AI-generated sales strategy, persisted so it survives reloads
+  aiInsights?: import("../features/accounts/types/account").AccountAIInsight; // cached AI insight, persisted to DB
   // Extended classification (DOOH direct advertisers vs agencies/partners)
   clientType?: ClientType;
   agencyType?: string; // only meaningful when clientType === "Agency"
@@ -110,6 +105,7 @@ export interface Contact {
   status: "Active" | "Cold" | "Engaged";
   lastContacted: string;
   assignedTo: string;
+  createdAt?: string;
 }
 
 export interface Deal {
@@ -130,6 +126,59 @@ export interface Deal {
   probability: number;
   nextFollowUp: string;
   notes: string;
+  // Extended opportunity fields
+  leadSource?: string;
+  paymentMethod?: string;
+  paymentStatus?: string;
+  revenueType?: string;
+  campaignStatus?: string;
+  creativeStatus?: string;
+  lostReason?: string;
+  contractType?: string;
+}
+
+// ----- Quotation / Invoice (ใบเสนอราคา / ใบแจ้งหนี้) -----
+export type DocType = "quotation" | "invoice";
+export type DocStatus =
+  | "Draft"
+  | "Sent"
+  | "Accepted"
+  | "Rejected"
+  | "Paid"
+  | "Cancelled";
+
+// A single billable line on a quotation/invoice.
+export interface DocLineItem {
+  description: string;
+  screenId?: string; // optional link back to a Screen (name or id)
+  qty: number;
+  unit: string; // "วัน" | "เดือน" | "สัปดาห์" | "ครั้ง" …
+  unitPrice: number; // THB per unit
+  amount: number; // qty * unitPrice (recomputed, stored for the printout)
+}
+
+export interface DealDocument {
+  id: string;
+  dealId: string;
+  companyId: string;
+  contactId?: string;
+  type: DocType;
+  docNumber: string; // QT-2026-0001 / INV-2026-0001
+  status: DocStatus;
+  issueDate: string; // YYYY-MM-DD
+  dueDate?: string; // valid-until (quotation) / due date (invoice)
+  lineItems: DocLineItem[];
+  subtotal: number;
+  discount: number; // absolute THB amount off the subtotal
+  vatRate: number; // percent, e.g. 7
+  vatAmount: number;
+  total: number;
+  currency: string; // "THB"
+  notes?: string;
+  terms?: string;
+  recipientEmail?: string;
+  sentAt?: string;
+  createdAt?: string;
 }
 
 export interface Activity {
@@ -169,159 +218,89 @@ export interface Screen {
   lng?: number;
 }
 
-export interface Campaign {
-  id: string;
+// AI Content Recommendation (field marketing content planner)
+export interface NearbyBusiness {
   name: string;
-  companyId: string;
-  status: "Draft" | "Active" | "Paused" | "Completed" | "Cancelled";
-  start: string;
-  end: string;
-  budget: number;
-  impressions: number;
-  cpm: number;
-  satisfaction: string;
-  renewal: number;
-  // Brand Activation fields
-  objective?: string;
-  screenIds?: string[];
-  influencerIds?: string[];
-  contentPieces?: number;
-  billboardReach?: number;
-  influencerViews?: number;
-  socialEngagement?: number;
-  storeVisits?: number;
-  qrScans?: number;
-  revenue?: number;
-  aiInsight?: string;
-  renewalReasons?: string[];
-  // Execution workflow (MVP — stored as JSON on the activation)
-  owner?: string;
-  notes?: string;
-  screensPlan?: ScreenPlan[];
-  influencersPlan?: InfluencerPlan[];
-  deliverables?: Deliverable[];
-  tasks?: CampaignTask[];
-  // Campaign type + performance
-  campaignType?: "INTERNAL_MARKETING" | "CLIENT_ACTIVATION";
-  performance?: PerformanceSummary;
-  influencerPerf?: InfluencerPerf[];
-  ads?: AdsRow[];
+  category: string;
+  categories?: string[];
+  address: string;
+  lat?: number;
+  lng?: number;
+  rating?: number;
+  reviewsCount?: number;
+  mapsUrl?: string;
+  matchedKeyword: string;
 }
 
-export interface PerformanceSummary {
-  doohReach?: number;
-  influencerReach?: number;
-  totalReach?: number;
-  socialEngagement?: number;
-  qrScans?: number;
-  clicks?: number;
-  leads?: number;
-  registrations?: number;
-  couponUsage?: number;
-  estimatedVisits?: number;
-  revenue?: number;
-  costPerLead?: number;
-  costPerRegistration?: number;
-  campaignScore?: number;
-}
-
-export interface InfluencerPerf {
-  id: string;
-  influencerId: string;
-  influencerName: string;
-  platform: string;
-  contentUrl?: string;
-  contentStatus?: string;
-  publishDate?: string;
-  views?: number;
-  likes?: number;
-  comments?: number;
-  shares?: number;
-  saves?: number;
-  clicks?: number;
-  qrScans?: number;
-  leads?: number;
-  registrations?: number;
-  couponUsage?: number;
-  estimatedVisits?: number;
-  revenue?: number;
-  cost?: number;
-  notes?: string;
-}
-
-export interface AdsRow {
-  id: string;
-  channel: string;
-  campaignName: string;
-  spend?: number;
-  impressions?: number;
-  reach?: number;
-  clicks?: number;
-  conversions?: number;
-  notes?: string;
-}
-
-export interface ScreenPlan {
-  id: string;
+export interface AreaPriorityItem {
   screenId: string;
   screenName: string;
-  province: string;
-  bookingStartDate: string;
-  bookingEndDate: string;
-  status: string; // Planned / Booked / Live / Completed / Cancelled
+  priorityRank: number;
+  reasoning: string;
 }
 
-export interface InfluencerPlan {
-  id: string;
-  influencerId: string;
-  name: string;
-  platform: string;
-  category: string;
-  province: string;
-  followerCount: number;
-  rate: string;
-  status: string; // To Contact ... Published / Completed
+export interface BusinessTypeRecommendation {
+  businessType: string;
+  count: number;
+  salesPotential: "High" | "Medium" | "Low";
+  salesPotentialReasoning: string;
+  caseStudyFit: "High" | "Medium" | "Low";
+  caseStudyReasoning: string;
+  interviewFit: "High" | "Medium" | "Low";
+  interviewReasoning: string;
+  exampleBusinesses: { name: string; address: string; rating?: number }[];
+  overallReasoning: string;
 }
 
-export interface Deliverable {
+export interface AreaContentAnalysis {
   id: string;
-  influencerId: string;
-  influencerName: string;
-  type: string;
-  platform: string;
-  quantity: number;
-  dueDate: string;
-  publishDate: string;
-  status: string;
-  contentUrl: string;
-  notes: string;
+  screenIds: string[];
+  screenNames: string[];
+  status: "ok" | "no_businesses_found";
+  businesses: NearbyBusiness[];
+  areaPriority: AreaPriorityItem[];
+  businessTypeRecommendations: BusinessTypeRecommendation[];
+  topRecommendation?: string;
+  topRecommendationReasoning?: string;
+  createdAt?: string;
 }
 
-export interface CampaignTask {
-  id: string;
-  title: string;
-  owner: string;
-  dueDate: string;
-  status: string; // Todo / In Progress / Waiting / Done / Blocked
-  priority: string; // Low / Medium / High / Urgent
-  relatedType: string;
-  relatedId: string;
-  notes: string;
+export interface ContentFormatSuggestion {
+  format: string;
+  reasoning: string;
 }
 
-export interface Influencer {
+export interface RecordingGuide {
+  openingHook: string;
+  shotList: string[];
+  bRoll: string[];
+  interviewQuestions: string[];
+  closingScene: string;
+}
+
+export interface ContentPlanBusinessRef {
+  name?: string;
+  address?: string;
+  category?: string;
+  mapsUrl?: string;
+  rating?: number;
+}
+
+export interface ContentPlan {
   id: string;
-  name: string;
-  platform: string;
-  followers: number;
-  category: string;
-  province: string;
-  rateCard: string;
-  avgViews: number;
-  engagementRate: number;
-  contentStatus: string;
-  brandsWorkedWith: string[];
-  avatar?: string;
+  analysisId?: string;
+  screenId?: string;
+  companyId?: string;
+  businessType: string;
+  businessRef: ContentPlanBusinessRef;
+  contentObjective: string;
+  contentObjectiveReasoning: string;
+  recommendedFormats: ContentFormatSuggestion[];
+  recordingGuide: RecordingGuide;
+  suggestedInterviewQuestions: string[];
+  suggestedHooks: string[];
+  reasoning: string;
+  createdAt?: string;
 }
 
 export const SCREENS: Screen[] = [
@@ -366,14 +345,14 @@ export const CONTACTS: Contact[] = [
 export const DEALS: Deal[] = [
   { id: "d1", name: "Dermaglow Q3 Brand Push", companyId: "c2", contactId: "ct2", clientType: "Direct Client", stage: "Negotiation", value: 480000, tier: "Platinum", aiClass: "Hot", priority: "Urgent", campaignType: "Brand Awareness", duration: "3 Months", screens: ["scr-1", "scr-5"], expectedClose: "2026-06-14", probability: 75, nextFollowUp: "2026-06-05", notes: "ลูกค้าขอลดราคา 8% แลกกับ commitment 3 เดือน" },
   { id: "d2", name: "Bangkok Bites — TastyTH Launch", companyId: "c3", contactId: "ct3", clientType: "Agency", stage: "Proposal Sent", value: 950000, tier: "Platinum", aiClass: "Agency Upsell", priority: "High", campaignType: "Product Launch", duration: "1 Month", screens: ["scr-1", "scr-2", "scr-5", "scr-8"], expectedClose: "2026-06-20", probability: 60, nextFollowUp: "2026-06-06", notes: "ส่ง proposal แล้ว รอ feedback จาก client side" },
-  { id: "d3", name: "Pure Property Phase 2", companyId: "c5", contactId: "ct5", clientType: "Direct Client", stage: "Needs Analysis", value: 380000, tier: "Gold", aiClass: "Hot", priority: "High", campaignType: "Product Launch", duration: "1 Month", screens: ["scr-6"], expectedClose: "2026-06-25", probability: 50, nextFollowUp: "2026-06-07", notes: "นัด site visit ที่ภูเก็ตวันที่ 7" },
-  { id: "d4", name: "ภูเขา Coffee BKK Expansion", companyId: "c1", contactId: "ct1", clientType: "Direct Client", stage: "Qualifying", value: 220000, tier: "Gold", aiClass: "Warm", priority: "Medium", campaignType: "Brand Awareness", duration: "2 Weeks", screens: ["scr-1", "scr-2"], expectedClose: "2026-07-10", probability: 35, nextFollowUp: "2026-06-08", notes: "Founder สนใจมาก รอตัดสินใจ store opening date" },
+  { id: "d3", name: "Pure Property Phase 2", companyId: "c5", contactId: "ct5", clientType: "Direct Client", stage: "Qualified", value: 380000, tier: "Gold", aiClass: "Hot", priority: "High", campaignType: "Product Launch", duration: "1 Month", screens: ["scr-6"], expectedClose: "2026-06-25", probability: 50, nextFollowUp: "2026-06-07", notes: "นัด site visit ที่ภูเก็ตวันที่ 7" },
+  { id: "d4", name: "ภูเขา Coffee BKK Expansion", companyId: "c1", contactId: "ct1", clientType: "Direct Client", stage: "Qualified", value: 220000, tier: "Gold", aiClass: "Warm", priority: "Medium", campaignType: "Brand Awareness", duration: "2 Weeks", screens: ["scr-1", "scr-2"], expectedClose: "2026-07-10", probability: 35, nextFollowUp: "2026-06-08", notes: "Founder สนใจมาก รอตัดสินใจ store opening date" },
   { id: "d5", name: "TT Mart Mega Sale", companyId: "c8", contactId: "ct8", clientType: "Direct Client", stage: "Won", value: 195000, tier: "Gold", aiClass: "Hot", priority: "Medium", campaignType: "Seasonal", duration: "2 Weeks", screens: ["scr-1", "scr-2"], expectedClose: "2026-06-01", probability: 100, nextFollowUp: "2026-06-15", notes: "Won — เริ่ม campaign 10 มิ.ย." },
   { id: "d6", name: "Wellness Spa Tourist Drive", companyId: "c11", contactId: "ct1", clientType: "Direct Client", stage: "Proposal Sent", value: 165000, tier: "Gold", aiClass: "Hot", priority: "Medium", campaignType: "Ongoing", duration: "3 Months", screens: ["scr-4"], expectedClose: "2026-06-18", probability: 65, nextFollowUp: "2026-06-09", notes: "" },
   { id: "d7", name: "Big Bang Concert Series", companyId: "c9", contactId: "ct9", clientType: "Agency", stage: "Negotiation", value: 320000, tier: "Gold", aiClass: "Agency Upsell", priority: "High", campaignType: "Event", duration: "1 Month", screens: ["scr-7", "scr-8"], expectedClose: "2026-06-22", probability: 70, nextFollowUp: "2026-06-10", notes: "ขอ bundle pricing สำหรับ 3 events ใน Q3" },
-  { id: "d8", name: "Creative Hub — Skincare Brand", companyId: "c6", contactId: "ct6", clientType: "Agency", stage: "New Lead", value: 140000, tier: "Silver", aiClass: "Agency Upsell", priority: "Medium", campaignType: "Brand Awareness", duration: "1 Month", screens: ["scr-1"], expectedClose: "2026-07-15", probability: 20, nextFollowUp: "2026-06-08", notes: "ส่ง intro deck แล้ว" },
-  { id: "d9", name: "FitnHouse บางเสร่ Opening", companyId: "c7", contactId: "ct7", clientType: "Direct Client", stage: "Qualifying", value: 78000, tier: "Silver", aiClass: "Warm", priority: "Low", campaignType: "Event", duration: "2 Weeks", screens: ["scr-7"], expectedClose: "2026-07-20", probability: 30, nextFollowUp: "2026-06-12", notes: "" },
-  { id: "d10", name: "ครัวกัปตัน High Season Test", companyId: "c4", contactId: "ct4", clientType: "Direct Client", stage: "New Lead", value: 42000, tier: "Bronze", aiClass: "Cold", priority: "Low", campaignType: "Test", duration: "1 Week", screens: ["scr-6"], expectedClose: "2026-08-01", probability: 15, nextFollowUp: "2026-06-13", notes: "" },
+  { id: "d8", name: "Creative Hub — Skincare Brand", companyId: "c6", contactId: "ct6", clientType: "Agency", stage: "Lead", value: 140000, tier: "Silver", aiClass: "Agency Upsell", priority: "Medium", campaignType: "Brand Awareness", duration: "1 Month", screens: ["scr-1"], expectedClose: "2026-07-15", probability: 20, nextFollowUp: "2026-06-08", notes: "ส่ง intro deck แล้ว" },
+  { id: "d9", name: "FitnHouse บางเสร่ Opening", companyId: "c7", contactId: "ct7", clientType: "Direct Client", stage: "Qualified", value: 78000, tier: "Silver", aiClass: "Warm", priority: "Low", campaignType: "Event", duration: "2 Weeks", screens: ["scr-7"], expectedClose: "2026-07-20", probability: 30, nextFollowUp: "2026-06-12", notes: "" },
+  { id: "d10", name: "ครัวกัปตัน High Season Test", companyId: "c4", contactId: "ct4", clientType: "Direct Client", stage: "Lead", value: 42000, tier: "Bronze", aiClass: "Cold", priority: "Low", campaignType: "Test", duration: "1 Week", screens: ["scr-6"], expectedClose: "2026-08-01", probability: 15, nextFollowUp: "2026-06-13", notes: "" },
   { id: "d11", name: "MotorMax Reactivation", companyId: "c12", contactId: "ct8", clientType: "Direct Client", stage: "On Hold", value: 120000, tier: "Silver", aiClass: "Cold", priority: "Low", campaignType: "Ongoing", duration: "1 Month", screens: ["scr-7"], expectedClose: "2026-08-15", probability: 10, nextFollowUp: "2026-06-20", notes: "Pause จนกว่าทีมการตลาด client พร้อม" },
   { id: "d12", name: "เลม่อนเฮ้าส์ First Touch", companyId: "c10", contactId: "ct1", clientType: "Direct Client", stage: "Lost", value: 28000, tier: "Bronze", aiClass: "Cold", priority: "Low", campaignType: "Test", duration: "1 Week", screens: ["scr-1"], expectedClose: "2026-05-20", probability: 0, nextFollowUp: "", notes: "Lost — Budget" },
 ];
@@ -391,12 +370,16 @@ export const ACTIVITIES: Activity[] = [
   { id: "a10", type: "Call", title: "Cold call MotorMax", date: "2026-06-03T11:00", status: "Missed", dealId: "d11", contactId: "ct8", companyId: "c12", summary: "ไม่รับสาย — reschedule สัปดาห์หน้า", assignedTo: "ธนกฤต" },
 ];
 
-export const TEAM = ["พิมพ์ใจ", "ธนกฤต", "ปิยะ", "วิภา"];
+export const TEAM = ["เนท", "กิ๊ก", "หนึ่ง", "แคท", "อาเช่"];
 export const INDUSTRIES = ["F&B", "Healthcare", "Real Estate", "Retail", "Advertising", "Events", "Wellness", "Automotive", "Education"];
 export const PROVINCES = ["กรุงเทพมหานคร", "นนทบุรี", "ชลบุรี", "นครสวรรค์", "เพชรบุรี", "สมุทรสาคร", "ภูเก็ต", "ฉะเชิงเทรา", "เชียงใหม่"];
 
 export const formatTHB = (n: number) =>
   new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", maximumFractionDigits: 0 }).format(n);
+
+// Exact baht with 2 decimals — for per-second rates (e.g. ฿0.50) and opportunity prices.
+export const formatTHB2 = (n: number) =>
+  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 
 export const formatNumber = (n: number) =>
   new Intl.NumberFormat("th-TH").format(n);
