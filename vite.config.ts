@@ -12,4 +12,8 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // Outside Lovable's own sandbox, the nitro build plugin is skipped unless explicitly
+  // enabled here — without it, there's no server entry for the host to run, which is
+  // why Vercel deployments 404 on every route. "vercel" targets Vercel's Node runtime.
+  nitro: { preset: "vercel" },
 });
