@@ -53,6 +53,7 @@ export interface Company {
   tags: string[];
   summary: string;
   salesStrategy?: string; // AI-generated sales strategy, persisted so it survives reloads
+  aiInsights?: import("../features/accounts/types/account").AccountAIInsight; // cached AI insight, persisted to DB
   // Extended classification (DOOH direct advertisers vs agencies/partners)
   clientType?: ClientType;
   agencyType?: string; // only meaningful when clientType === "Agency"
@@ -217,159 +218,89 @@ export interface Screen {
   lng?: number;
 }
 
-export interface Campaign {
-  id: string;
+// AI Content Recommendation (field marketing content planner)
+export interface NearbyBusiness {
   name: string;
-  companyId: string;
-  status: "Draft" | "Active" | "Paused" | "Completed" | "Cancelled";
-  start: string;
-  end: string;
-  budget: number;
-  impressions: number;
-  cpm: number;
-  satisfaction: string;
-  renewal: number;
-  // Brand Activation fields
-  objective?: string;
-  screenIds?: string[];
-  influencerIds?: string[];
-  contentPieces?: number;
-  billboardReach?: number;
-  influencerViews?: number;
-  socialEngagement?: number;
-  storeVisits?: number;
-  qrScans?: number;
-  revenue?: number;
-  aiInsight?: string;
-  renewalReasons?: string[];
-  // Execution workflow (MVP — stored as JSON on the activation)
-  owner?: string;
-  notes?: string;
-  screensPlan?: ScreenPlan[];
-  influencersPlan?: InfluencerPlan[];
-  deliverables?: Deliverable[];
-  tasks?: CampaignTask[];
-  // Campaign type + performance
-  campaignType?: "INTERNAL_MARKETING" | "CLIENT_ACTIVATION";
-  performance?: PerformanceSummary;
-  influencerPerf?: InfluencerPerf[];
-  ads?: AdsRow[];
+  category: string;
+  categories?: string[];
+  address: string;
+  lat?: number;
+  lng?: number;
+  rating?: number;
+  reviewsCount?: number;
+  mapsUrl?: string;
+  matchedKeyword: string;
 }
 
-export interface PerformanceSummary {
-  doohReach?: number;
-  influencerReach?: number;
-  totalReach?: number;
-  socialEngagement?: number;
-  qrScans?: number;
-  clicks?: number;
-  leads?: number;
-  registrations?: number;
-  couponUsage?: number;
-  estimatedVisits?: number;
-  revenue?: number;
-  costPerLead?: number;
-  costPerRegistration?: number;
-  campaignScore?: number;
-}
-
-export interface InfluencerPerf {
-  id: string;
-  influencerId: string;
-  influencerName: string;
-  platform: string;
-  contentUrl?: string;
-  contentStatus?: string;
-  publishDate?: string;
-  views?: number;
-  likes?: number;
-  comments?: number;
-  shares?: number;
-  saves?: number;
-  clicks?: number;
-  qrScans?: number;
-  leads?: number;
-  registrations?: number;
-  couponUsage?: number;
-  estimatedVisits?: number;
-  revenue?: number;
-  cost?: number;
-  notes?: string;
-}
-
-export interface AdsRow {
-  id: string;
-  channel: string;
-  campaignName: string;
-  spend?: number;
-  impressions?: number;
-  reach?: number;
-  clicks?: number;
-  conversions?: number;
-  notes?: string;
-}
-
-export interface ScreenPlan {
-  id: string;
+export interface AreaPriorityItem {
   screenId: string;
   screenName: string;
-  province: string;
-  bookingStartDate: string;
-  bookingEndDate: string;
-  status: string; // Planned / Booked / Live / Completed / Cancelled
+  priorityRank: number;
+  reasoning: string;
 }
 
-export interface InfluencerPlan {
-  id: string;
-  influencerId: string;
-  name: string;
-  platform: string;
-  category: string;
-  province: string;
-  followerCount: number;
-  rate: string;
-  status: string; // To Contact ... Published / Completed
+export interface BusinessTypeRecommendation {
+  businessType: string;
+  count: number;
+  salesPotential: "High" | "Medium" | "Low";
+  salesPotentialReasoning: string;
+  caseStudyFit: "High" | "Medium" | "Low";
+  caseStudyReasoning: string;
+  interviewFit: "High" | "Medium" | "Low";
+  interviewReasoning: string;
+  exampleBusinesses: { name: string; address: string; rating?: number }[];
+  overallReasoning: string;
 }
 
-export interface Deliverable {
+export interface AreaContentAnalysis {
   id: string;
-  influencerId: string;
-  influencerName: string;
-  type: string;
-  platform: string;
-  quantity: number;
-  dueDate: string;
-  publishDate: string;
-  status: string;
-  contentUrl: string;
-  notes: string;
+  screenIds: string[];
+  screenNames: string[];
+  status: "ok" | "no_businesses_found";
+  businesses: NearbyBusiness[];
+  areaPriority: AreaPriorityItem[];
+  businessTypeRecommendations: BusinessTypeRecommendation[];
+  topRecommendation?: string;
+  topRecommendationReasoning?: string;
+  createdAt?: string;
 }
 
-export interface CampaignTask {
-  id: string;
-  title: string;
-  owner: string;
-  dueDate: string;
-  status: string; // Todo / In Progress / Waiting / Done / Blocked
-  priority: string; // Low / Medium / High / Urgent
-  relatedType: string;
-  relatedId: string;
-  notes: string;
+export interface ContentFormatSuggestion {
+  format: string;
+  reasoning: string;
 }
 
-export interface Influencer {
+export interface RecordingGuide {
+  openingHook: string;
+  shotList: string[];
+  bRoll: string[];
+  interviewQuestions: string[];
+  closingScene: string;
+}
+
+export interface ContentPlanBusinessRef {
+  name?: string;
+  address?: string;
+  category?: string;
+  mapsUrl?: string;
+  rating?: number;
+}
+
+export interface ContentPlan {
   id: string;
-  name: string;
-  platform: string;
-  followers: number;
-  category: string;
-  province: string;
-  rateCard: string;
-  avgViews: number;
-  engagementRate: number;
-  contentStatus: string;
-  brandsWorkedWith: string[];
-  avatar?: string;
+  analysisId?: string;
+  screenId?: string;
+  companyId?: string;
+  businessType: string;
+  businessRef: ContentPlanBusinessRef;
+  contentObjective: string;
+  contentObjectiveReasoning: string;
+  recommendedFormats: ContentFormatSuggestion[];
+  recordingGuide: RecordingGuide;
+  suggestedInterviewQuestions: string[];
+  suggestedHooks: string[];
+  reasoning: string;
+  createdAt?: string;
 }
 
 export const SCREENS: Screen[] = [

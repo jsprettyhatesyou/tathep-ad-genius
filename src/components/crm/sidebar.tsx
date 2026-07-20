@@ -9,13 +9,12 @@ import {
   Eye,
   ChevronLeft,
   Monitor,
-  Megaphone,
-  Star,
   Search,
   Bell,
   Settings,
   UserCheck,
   Upload,
+  Radar,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -45,6 +44,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: "Lead Intelligence",
     items: [
       { to: "/lead-finder", label: "AI Lead Finder", icon: Search, ai: true },
+      { to: "/content-planner", label: "AI Content Planner", icon: Radar, ai: true },
       { to: "/leads/import", label: "Import Leads", icon: Upload, ai: true },
       { to: "/leads", label: "Leads", icon: UserCheck, matchExact: true },
     ],
@@ -59,11 +59,9 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "Campaigns",
+    label: "Screens",
     items: [
-      { to: "/influencers", label: "Influencers", icon: Star },
       { to: "/inventory", label: "Billboard Inventory", icon: Monitor },
-      { to: "/campaigns", label: "Brand Activations", icon: Megaphone },
     ],
   },
 ];

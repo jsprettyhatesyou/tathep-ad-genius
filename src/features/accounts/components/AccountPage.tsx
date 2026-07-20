@@ -13,7 +13,7 @@ import {
 } from "@/components/crm/entity-dialogs";
 import { deleteCompany, deleteCompanies, updateCompany } from "@/lib/api/crm.functions";
 import { generateAccountInsights, classifyLead } from "@/lib/api/ai.functions";
-import type { Company, Contact, Deal, Activity, Campaign, Screen } from "@/lib/mock-data";
+import type { Company, Contact, Deal, Activity, Screen } from "@/lib/mock-data";
 import type { AccountAIInsight } from "../types/account";
 import { computeAccountMetrics, deriveTasks, toDate } from "../utils/accountMetrics";
 import { computeRisks } from "../utils/accountHealth";
@@ -27,21 +27,22 @@ interface LoaderData {
   contacts: Contact[];
   deals: Deal[];
   activities: Activity[];
-  campaigns: Campaign[];
   screens: Screen[];
 }
 
 const WON = "Won";
 
-export function AccountPage({ companies, contacts, deals, activities, campaigns, screens }: LoaderData) {
+export function AccountPage({
+  companies, contacts, deals, activities, screens, initialSelectedId,
+}: LoaderData & { initialSelectedId?: string }) {
   const router = useRouter();
   const refresh = () => router.invalidate();
 
-  const [selectedId, setSelectedId] = useState<string | null>(companies[0]?.id ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? companies[0]?.id ?? null);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<AccountFilter>("All");
   const [sort, setSort] = useState<AccountSort>("revenue");
-  const [aiTab, setAiTab] = useState("overview");
+  const [aiTab, setAiTab] = useState(initialSelectedId ? "content-plan" : "overview");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // dialogs
@@ -50,8 +51,10 @@ export function AccountPage({ companies, contacts, deals, activities, campaigns,
   const [dealDialog, setDealDialog] = useState<{ open: boolean; companyId?: string; initial?: Deal | null }>({ open: false });
   const [activityDialog, setActivityDialog] = useState<{ open: boolean; companyId?: string }>({ open: false });
 
-  // AI insight cache (per company, session-scoped) + loading flags
-  const [insights, setInsights] = useState<Record<string, AccountAIInsight>>({});
+  // AI insight cache — seeded from DB (aiInsights persisted per company), supplemented in-session
+  const [insights, setInsights] = useState<Record<string, AccountAIInsight>>(() =>
+    Object.fromEntries(companies.filter((c) => c.aiInsights).map((c) => [c.id, c.aiInsights!]))
+  );
   const [insightLoading, setInsightLoading] = useState(false);
   const [classifying, setClassifying] = useState(false);
 
@@ -60,7 +63,6 @@ export function AccountPage({ companies, contacts, deals, activities, campaigns,
     const d = new Map<string, Deal[]>();
     const c = new Map<string, Contact[]>();
     const a = new Map<string, Activity[]>();
-    const cp = new Map<string, Campaign[]>();
     const push = <T,>(m: Map<string, T[]>, k: string | undefined, v: T) => {
       if (!k) return;
       (m.get(k) ?? m.set(k, []).get(k)!).push(v);
@@ -68,9 +70,8 @@ export function AccountPage({ companies, contacts, deals, activities, campaigns,
     deals.forEach((x) => push(d, x.companyId, x));
     contacts.forEach((x) => push(c, x.companyId, x));
     activities.forEach((x) => push(a, x.companyId, x));
-    campaigns.forEach((x) => push(cp, x.companyId, x));
-    return { d, c, a, cp };
-  }, [deals, contacts, activities, campaigns]);
+    return { d, c, a };
+  }, [deals, contacts, activities]);
 
   const summaryFor = (id: string): AccountCardSummary => {
     const co = companies.find((x) => x.id === id);
@@ -145,13 +146,11 @@ export function AccountPage({ companies, contacts, deals, activities, campaigns,
     const ds = grouped.d.get(selected.id) ?? [];
     const cs = grouped.c.get(selected.id) ?? [];
     const acts = grouped.a.get(selected.id) ?? [];
-    const cps = grouped.cp.get(selected.id) ?? [];
     return {
       deals: ds,
       contacts: cs,
       activities: acts,
-      campaigns: cps,
-      metrics: computeAccountMetrics(selected, ds, acts, cps),
+      metrics: computeAccountMetrics(selected, ds, acts),
       tasks: deriveTasks(selected, ds, acts),
       risks: computeRisks(selected, ds, acts, cs),
     };
@@ -235,7 +234,6 @@ export function AccountPage({ companies, contacts, deals, activities, campaigns,
               contacts={detail.contacts}
               deals={detail.deals}
               activities={detail.activities}
-              campaigns={detail.campaigns}
               screens={screens}
               metrics={detail.metrics}
               tasks={detail.tasks}
@@ -262,7 +260,7 @@ export function AccountPage({ companies, contacts, deals, activities, campaigns,
                 <Building2 className="h-7 w-7" />
               </div>
               <p className="text-sm font-medium">เลือกบริษัทจากรายการด้านซ้าย</p>
-              <p className="max-w-xs text-xs text-muted-foreground">ดูโปรไฟล์ลูกค้า มูลค่า ความสัมพันธ์ ผู้ติดต่อ ดีล แคมเปญ และให้น้องตาเทพช่วยวางกลยุทธ์</p>
+              <p className="max-w-xs text-xs text-muted-foreground">ดูโปรไฟล์ลูกค้า มูลค่า ความสัมพันธ์ ผู้ติดต่อ ดีล และให้น้องตาเทพช่วยวางกลยุทธ์</p>
             </div>
           )}
         </div>

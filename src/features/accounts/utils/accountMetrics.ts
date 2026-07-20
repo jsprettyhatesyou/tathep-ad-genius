@@ -1,6 +1,6 @@
 // Pure derivations of account-level metrics & tasks from related records.
 // No I/O. Used by the Accounts detail panel and the left-list cards.
-import type { Company, Deal, Activity, Campaign, Priority } from "@/lib/mock-data";
+import type { Company, Deal, Activity, Priority } from "@/lib/mock-data";
 import type { AccountMetrics, AccountTask } from "../types/account";
 
 const OPEN_EXCLUDE = new Set(["Won", "Lost"]);
@@ -20,7 +20,6 @@ export function computeAccountMetrics(
   company: Company,
   deals: Deal[],
   activities: Activity[],
-  campaigns: Campaign[],
 ): AccountMetrics {
   const won = deals.filter((d) => d.stage === "Won");
   const open = deals.filter((d) => !OPEN_EXCLUDE.has(d.stage));
@@ -46,8 +45,6 @@ export function computeAccountMetrics(
     openOpportunities: open.length,
     closedWonOpportunities: won.length,
     openPipelineValue: open.reduce((s, d) => s + (d.value || 0), 0),
-    totalCampaigns: campaigns.length,
-    lastCampaignDate: maxDate(campaigns.flatMap((c) => [c.end, c.start])),
     lastActivityAt: maxDate(activities.map((a) => a.date)),
     nextFollowUpAt: futureFollowUps[0] || undefined,
   };

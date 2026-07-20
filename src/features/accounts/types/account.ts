@@ -2,7 +2,7 @@
 //
 // The persisted record stays the existing `Company` (Supabase `companies` table).
 // Everything below is DERIVED at runtime from related records (deals, contacts,
-// activities, campaigns) — no schema migration required. Sections consume these
+// activities) — no schema migration required. Sections consume these
 // computed shapes so the Accounts page can answer:
 //   "บริษัทนี้คือใคร มีมูลค่าเท่าไหร่ เคยทำอะไรกับเรา มีใครต้องติดต่อ และควรทำอะไรต่อ"
 import type { Company } from "@/lib/mock-data";
@@ -16,8 +16,6 @@ export interface AccountMetrics {
   openOpportunities: number;
   closedWonOpportunities: number;
   openPipelineValue: number;
-  totalCampaigns: number;
-  lastCampaignDate?: string;
   lastActivityAt?: string;
   nextFollowUpAt?: string;
 }

@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { getSupabaseAdmin } from "../supabase.server";
-import { rowToCompany, rowToContact, rowToDeal, rowToScreen, rowToCampaign, rowToInfluencer, rowToActivity } from "../db-mappers";
+import { rowToCompany, rowToContact, rowToDeal, rowToScreen, rowToActivity } from "../db-mappers";
 import { tathepText, tathepJSON, tathepChat } from "../claude.server";
 import { enrichPhones, placesEnabled } from "../places.server";
 import { THAI_PROVINCES } from "../crm-options";
@@ -190,11 +190,14 @@ ${screens.map((s) => `- ${s.name} (${s.province}, ${s.areaType}, ${fmtTHB(s.dail
 - research: summary (2-3 ประโยคว่าบริษัทนี้คือใคร), industry, location, companySize (ประเมิน), growthSignals (2-4 สัญญาณการเติบโต/ขยายตัว), marketingMoments (2-4 จังหวะการตลาดที่ควรยิง DOOH เช่น เปิดสาขา/เทศกาล/โปรโมชั่น)
 - strategy: recommendedPackage (แพ็กเกจ DOOH ที่แนะนำ), recommendedLocations (1-3 จอจากรายการข้างบน), suggestedBudget (ช่วงงบที่เหมาะ), bestTiming (ช่วงเวลาที่ควรยิง), upsell (โอกาส upsell/ต่อยอด)
 - talkingPoints: 3-5 bullet สั้นๆ ที่ทีมขายใช้เปิดการสนทนากับลูกค้ารายนี้ได้ทันที`;
-    return tathepJSON<{
+    const insight = await tathepJSON<{
       research: { summary: string; industry: string; location: string; companySize: string; growthSignals: string[]; marketingMoments: string[] };
       strategy: { recommendedPackage: string; recommendedLocations: string[]; suggestedBudget: string; bestTiming: string; upsell: string };
       talkingPoints: string[];
     }>(prompt, ACCOUNT_INSIGHT_SCHEMA, 1800);
+    const { error } = await db.from("companies").update({ ai_insights: insight }).eq("id", data.companyId);
+    if (error) throw new Error(`บันทึก AI insight ไม่สำเร็จ: ${error.message}`);
+    return insight;
   });
 
 /* ============================ AI LEAD FINDER ============================ */
@@ -419,9 +422,8 @@ ${f.industries?.length ? `- เน้นอุตสาหกรรม: ${f.indu
         if (!billboardSelected) return true;
         if (l._hasCoords && anchors.length && l._nearestKm != null) return l._nearestKm <= tolerance;
         if (l._realProvince) return anchorProvinces.includes(l._realProvince);
-        // Couldn't verify location: with Apify on we can't confirm proximity → drop;
-        // with Apify off, fall back to the AI's claimed province.
-        return placesEnabled() ? false : anchorProvinces.includes(l.province);
+        // Apify timed out or returned no data — fall back to AI-claimed province.
+        return anchorProvinces.includes(l.province);
       })
       .map(({ _realProvince, _hasCoords, _nearestKm, ...l }) => l);
 
@@ -445,70 +447,11 @@ export const leadAsset = createServerFn({ method: "POST" })
       return { text: await tathepText(prompt, 1400) };
     }
     if (data.kind === "email") {
-      const prompt = `เขียนอีเมล outreach แนะนำบริการ Smart DOOH ของ Tathep ถึง prospect รายนี้\n\n${ctx}\n\nกระชับ มืออาชีพ ภาษาไทย: หัวเรื่อง (Subject) + เนื้ออีเมล 3-4 ย่อหน้าสั้น เน้นมุม location-based + วัดผลได้ + CTA ขอนัดคุย 15 นาที`;
+      const prompt = `เขียนอีเมล outreach แนะนำบริการ Smart DOOH ของ Tathep ถึง prospect รายนี้\n\n${ctx}\n\nกระชับ มืออาชีพ ภาษาไทย: หัวเรื่อง (Subject) + เนื้ออีเมล 3-4 ย่อหน้าสั้น เน้นมุม location-based + วัดผลได้ + CTA ขอนัดคุย 15 นาที\nลงท้ายอีเมลด้วย "จาก Marketing Team, Tathep" เท่านั้น ห้ามระบุชื่อ AI หรือชื่อบุคคล`;
       return { text: await tathepText(prompt, 900) };
     }
-    const prompt = `เขียน call script (สคริปต์โทรหา) สำหรับทีมขายโทรหา prospect DOOH รายนี้\n\n${ctx}\n\nภาษาไทย: เปิดสาย (hook) → คำถาม discovery 2-3 ข้อ → pitch สั้น → รับมือข้อโต้แย้งที่พบบ่อย 1-2 ข้อ → ปิดนัดหมาย แบบ bullet สั้นๆ`;
+    const prompt = `เขียน call script (สคริปต์โทรหา) สำหรับทีมขายโทรหา prospect DOOH รายนี้\n\n${ctx}\n\nภาษาไทย: เปิดสาย (hook) → คำถาม discovery 2-3 ข้อ → pitch สั้น → รับมือข้อโต้แย้งที่พบบ่อย 1-2 ข้อ → ปิดนัดหมาย แบบ bullet สั้นๆ\nในสคริปต์แนะนำตัวว่า "จาก Marketing Team ของ Tathep" ห้ามระบุชื่อ AI`;
     return { text: await tathepText(prompt, 1000) };
-  });
-
-/* ============================ BRAND ACTIVATIONS AI ============================ */
-
-// Generate an AI insight for a campaign/activation (billboard + influencer blend).
-export const generateCampaignInsight = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ campaignId: z.string().min(1) }))
-  .handler(async ({ data }) => {
-    const db = getSupabaseAdmin();
-    const { data: cRow } = await db.from("campaigns").select("*").eq("id", data.campaignId).single();
-    if (!cRow) throw new Error("ไม่พบแคมเปญนี้");
-    const c = rowToCampaign(cRow);
-    const company = c.companyId ? rowToCompany((await db.from("companies").select("*").eq("id", c.companyId).single()).data ?? {}) : null;
-    const infs = c.influencerIds?.length ? ((await db.from("influencers").select("*").in("id", c.influencerIds)).data ?? []).map(rowToInfluencer) : [];
-
-    const ctx = `แคมเปญ: ${c.name} · ลูกค้า: ${company?.name ?? "-"} · วัตถุประสงค์: ${c.objective ?? "-"} · สถานะ: ${c.status}\n` +
-      `ผลลัพธ์: Billboard Reach ${fmtTHB(c.billboardReach ?? 0)} · Influencer Views ${fmtTHB(c.influencerViews ?? 0)} · Engagement ${fmtTHB(c.socialEngagement ?? 0)} · Store Visits ${fmtTHB(c.storeVisits ?? 0)} · QR Scans ${fmtTHB(c.qrScans ?? 0)} · Revenue ${fmtTHB(c.revenue ?? 0)}฿\n` +
-      `Influencers: ${infs.map((i) => `${i.name} (${i.platform}, ${fmtTHB(i.followers)} followers, ${i.category})`).join("; ") || "ไม่มี"}`;
-
-    const insight = await tathepText(
-      `วิเคราะห์ผลแคมเปญ DOOH+Influencer นี้ ให้ AI Insight สั้นๆ 3 bullet (ขึ้นต้น "- ") เปรียบเทียบพลังของ billboard vs creator content, กลุ่มที่ engage มากสุด, และผลต่อ store visits/ยอดขาย — ภาษาไทย กระชับ ใช้ตัวเลขจริง\n\n${ctx}`,
-      600,
-    );
-    await db.from("campaigns").update({ ai_insight: insight }).eq("id", c.id);
-    return { insight };
-  });
-
-// AI Campaign Matchmaker: input a company/lead → recommend billboards + influencers.
-const MATCH_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    recommendedScreens: { type: "array", items: { type: "string" } },
-    recommendedInfluencers: { type: "array", items: { type: "string" } },
-    expectedReach: { type: "integer" },
-    expectedVisits: { type: "integer" },
-    campaignScore: { type: "integer" },
-    rationale: { type: "string" },
-  },
-  required: ["recommendedScreens", "recommendedInfluencers", "expectedReach", "expectedVisits", "campaignScore", "rationale"],
-};
-
-export const matchmakeCampaign = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ companyId: z.string().min(1) }))
-  .handler(async ({ data }) => {
-    const db = getSupabaseAdmin();
-    const { data: coRow } = await db.from("companies").select("*").eq("id", data.companyId).single();
-    if (!coRow) throw new Error("ไม่พบบริษัทนี้");
-    const company = rowToCompany(coRow);
-    const screens = ((await db.from("screens").select("*")).data ?? []).map(rowToScreen);
-    const influencers = ((await db.from("influencers").select("*")).data ?? []).map(rowToInfluencer);
-
-    const prompt = `คุณคือ AI Media Planner ของ Tathep — จับคู่ "ป้าย DOOH + Influencer" ที่ดีที่สุดให้ลูกค้ารายนี้\n\n` +
-      `ลูกค้า: ${company.name} · ${company.industry} · ${company.province} · ${company.summary ?? ""}\n\n` +
-      `ป้ายที่มี:\n${screens.map((s) => `- ${s.name} (${s.province}, ${s.areaType}, ${s.ratePerSecond ?? 0.25}฿/วิ)`).join("\n")}\n\n` +
-      `Influencers ที่มี:\n${influencers.map((i) => `- ${i.name} (${i.platform}, ${fmtTHB(i.followers)} followers, ${i.category}, ${i.province})`).join("\n") || "(ยังไม่มี)"}\n\n` +
-      `เลือกป้าย 1-3 จอ (recommendedScreens = ชื่อจากรายการเท่านั้น) + influencer 1-3 คน (recommendedInfluencers = ชื่อจากรายการเท่านั้น) ที่ตรงกับทำเล/กลุ่มเป้าหมายของลูกค้า, ประเมิน expectedReach + expectedVisits + campaignScore (0-100) + rationale สั้นๆ ภาษาไทย`;
-
-    return tathepJSON(prompt, MATCH_SCHEMA, 1500);
   });
 
 /* ---------- Enrich a single imported lead (structured) ---------- */
@@ -549,22 +492,18 @@ const SNAP_CAP = { companies: 300, contacts: 600 };
 // province, pipeline math) from live Supabase data — not just aggregates.
 async function crmSnapshot(): Promise<string> {
   const db = getSupabaseAdmin();
-  const [coRes, contactRes, dealRes, screenRes, actRes, campRes, infRes] = await Promise.all([
+  const [coRes, contactRes, dealRes, screenRes, actRes] = await Promise.all([
     db.from("companies").select("*"),
     db.from("contacts").select("*"),
     db.from("deals").select("*"),
     db.from("screens").select("*"),
     db.from("activities").select("*"),
-    db.from("campaigns").select("*"),
-    db.from("influencers").select("*"),
   ]);
   const companies = (coRes.data ?? []).map(rowToCompany);
   const contacts = (contactRes.data ?? []).map(rowToContact);
   const deals = (dealRes.data ?? []).map(rowToDeal);
   const screens = (screenRes.data ?? []).map(rowToScreen);
   const activities = (actRes.data ?? []).map(rowToActivity);
-  const campaigns = (campRes.data ?? []).map(rowToCampaign);
-  const influencers = (infRes.data ?? []).map(rowToInfluencer);
 
   const coName = new Map(companies.map((c) => [c.id, c.name]));
 
@@ -585,7 +524,7 @@ async function crmSnapshot(): Promise<string> {
   out.push(`- บริษัท ${companies.length} (Agency ${agencies}) · ผู้ติดต่อ ${contacts.length} · ดีล ${deals.length} (เปิด ${open.length}, ปิดได้ ${won.length})`);
   out.push(`- pipeline (ดีลเปิด) ฿${fmtTHB(pipeline)} · ปิดได้รวม ฿${fmtTHB(wonValue)}`);
   out.push(`- ดีลแยก stage: ${Object.entries(byStage).map(([k, v]) => `${k} ${v}`).join(", ") || "-"}`);
-  out.push(`- จอ DOOH ${screens.length} · แคมเปญ ${campaigns.length} · influencer ${influencers.length} · activity ${activities.length}`);
+  out.push(`- จอ DOOH ${screens.length} · activity ${activities.length}`);
 
   out.push("");
   out.push(`## บริษัท/Accounts (${companies.length})`);
@@ -618,18 +557,6 @@ async function crmSnapshot(): Promise<string> {
   }
 
   out.push("");
-  out.push(`## แคมเปญ/Campaigns (${campaigns.length})`);
-  for (const c of campaigns) {
-    out.push(`- ${c.name} | ${coName.get(c.companyId) ?? "-"} | ${c.status} | ${c.start || "-"}→${c.end || "-"} | งบ ฿${fmtTHB(c.budget || 0)} | impressions ${fmtTHB(c.impressions || 0)}`);
-  }
-
-  out.push("");
-  out.push(`## Influencers (${influencers.length})`);
-  for (const i of influencers) {
-    out.push(`- ${i.name} | ${i.platform} | ผู้ติดตาม ${fmtTHB(i.followers)} | ${i.category} | ${i.province} | เรท ${i.rateCard} | ER ${i.engagementRate}%`);
-  }
-
-  out.push("");
   out.push(`## กิจกรรม/Activities (${activities.length})`);
   for (const a of activities) {
     out.push(`- ${a.date || "-"} | ${a.type} | ${a.title} | ${a.status} | ${a.companyId ? coName.get(a.companyId) ?? "-" : "-"} | ถัดไป: ${a.nextAction || "-"}`);
@@ -652,7 +579,7 @@ export const assistantChat = createServerFn({ method: "POST" })
     const system = `${ctx}
 
 คุณคือ "Sales OS AI" — ผู้ช่วยนักกลยุทธ์สื่อ (media strategist) ของทีมขาย Smart DOOH
-คุณมี "ข้อมูล CRM จริงทั้งหมด" ด้านบน (บริษัท, ผู้ติดต่อ, ดีล, จอ DOOH, แคมเปญ, influencer, กิจกรรม) — ใช้ตอบคำถามได้ทั้ง:
+คุณมี "ข้อมูล CRM จริงทั้งหมด" ด้านบน (บริษัท, ผู้ติดต่อ, ดีล, จอ DOOH, กิจกรรม) — ใช้ตอบคำถามได้ทั้ง:
 - ค้นหา/ลุคอัพเจาะจง: "บริษัท X อยู่จังหวัดไหน", "เบอร์ของ Y", "ผู้ติดต่อของบริษัท Z คือใคร", "จอที่ว่างในภูเก็ตมีอะไรบ้าง"
 - วิเคราะห์/สรุป: pipeline, จัดลำดับดีลสำคัญ, แนะนำจอที่เหมาะกับดีล, ร่าง outreach, พยากรณ์รายได้
 กติกา: อ้างอิงชื่อ/ตัวเลขจากข้อมูลจริงด้านบนเสมอ ถ้าไม่พบในข้อมูลให้บอกตรงๆ ว่า "ไม่มีในระบบ" ห้ามเดาหรือแต่งขึ้น

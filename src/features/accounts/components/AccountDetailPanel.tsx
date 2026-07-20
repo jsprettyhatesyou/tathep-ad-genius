@@ -2,14 +2,13 @@ import { Building2, Pencil, UserPlus, Plus, Activity as ActivityIcon, CheckSquar
 import { Button } from "@/components/ui/button";
 import { DeleteConfirm } from "@/components/crm/form-kit";
 import { ClientTypeBadge, StatusBadge, TierBadge } from "@/components/crm/badges";
-import type { Company, Contact, Deal, Activity, Campaign, Screen } from "@/lib/mock-data";
+import type { Company, Contact, Deal, Activity, Screen } from "@/lib/mock-data";
 import type { AccountMetrics, AccountTask, AccountRisk, AccountAIInsight } from "../types/account";
 import { AccountSummaryCards } from "./AccountSummaryCards";
 import { AccountInfoSection } from "./AccountInfoSection";
 import { AccountAIInsightTabs } from "./AccountAIInsightTabs";
 import { AccountContactsSection } from "./AccountContactsSection";
 import { AccountOpportunitiesSection } from "./AccountOpportunitiesSection";
-import { AccountCampaignHistorySection } from "./AccountCampaignHistorySection";
 import { AccountTasksSection } from "./AccountTasksSection";
 import { AccountActivitiesTimeline } from "./AccountActivitiesTimeline";
 
@@ -18,7 +17,6 @@ export interface AccountDetailProps {
   contacts: Contact[];
   deals: Deal[];
   activities: Activity[];
-  campaigns: Campaign[];
   screens: Screen[];
   metrics: AccountMetrics;
   tasks: AccountTask[];
@@ -100,7 +98,6 @@ export function AccountDetailPanel(p: AccountDetailProps) {
           screens={p.screens}
           onCreate={p.onCreateOpportunity}
         />
-        <AccountCampaignHistorySection campaigns={p.campaigns} screens={p.screens} />
         <AccountTasksSection tasks={p.tasks} onCreate={p.onCreateTask} />
         <AccountActivitiesTimeline activities={p.activities} onLog={p.onLogActivity} onNote={p.onAddNote} onTask={p.onCreateTask} />
       </div>

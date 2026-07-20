@@ -46,7 +46,7 @@ async function scrapeBatch(queries: string[], names: string[]): Promise<(any | n
         countryCode: "th",
         skipClosedPlaces: false,
       }),
-      signal: AbortSignal.timeout(280_000),
+      signal: AbortSignal.timeout(90_000),
     },
   );
   if (!res.ok) return queries.map(() => null);
@@ -124,4 +124,91 @@ export async function enrichPhones(items: { name: string; locationHint?: string 
 export async function lookupPlacePhone(name: string, locationHint = ""): Promise<PlacesPhone | null> {
   const [r] = await enrichPhones([{ name, locationHint }]);
   return r ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Nearby-business discovery (AI Content Recommendation feature)
+// Radius search around a billboard's lat/lng — real businesses from Google
+// Maps, grouped by which business-type keyword matched them. Distinct from
+// enrichPhones()'s exact-name lookup above; shares the same actor/token.
+
+export type NearbyBusiness = {
+  name: string;
+  category: string;
+  categories: string[];
+  address: string;
+  lat?: number;
+  lng?: number;
+  rating?: number;
+  reviewsCount?: number;
+  mapsUrl: string;
+  matchedKeyword: string;
+};
+
+export const BUSINESS_TYPE_KEYWORDS = [
+  { key: "cafe", label: "คาเฟ่", keyword: "คาเฟ่" },
+  { key: "restaurant", label: "ร้านอาหาร", keyword: "ร้านอาหาร" },
+  { key: "mobile_shop", label: "ร้านมือถือ", keyword: "ร้านมือถือ" },
+  { key: "clinic", label: "คลินิก", keyword: "คลินิก" },
+  { key: "hotel", label: "โรงแรม", keyword: "โรงแรม" },
+  { key: "beauty_salon", label: "ร้านเสริมสวย", keyword: "ร้านเสริมสวย" },
+  { key: "local_shop", label: "ร้านค้า Local", keyword: "ร้านค้าท้องถิ่น" },
+] as const;
+
+export async function findNearbyBusinesses(
+  point: { lat: number; lng: number },
+  opts?: { radiusKm?: number; maxPerSearch?: number },
+): Promise<NearbyBusiness[]> {
+  const token = process.env.APIFY_API_TOKEN;
+  if (!token) return [];
+
+  const radiusKm = opts?.radiusKm ?? 1;
+  const maxCrawledPlacesPerSearch = opts?.maxPerSearch ?? 5;
+  const keywords = BUSINESS_TYPE_KEYWORDS.map((k) => k.keyword);
+
+  try {
+    const res = await fetch(
+      `https://api.apify.com/v2/acts/${ACTOR}/run-sync-get-dataset-items?token=${encodeURIComponent(token)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          searchStringsArray: keywords,
+          customGeolocation: { type: "Point", coordinates: [point.lng, point.lat], radiusKm },
+          maxCrawledPlacesPerSearch,
+          language: "th",
+          countryCode: "th",
+          skipClosedPlaces: true,
+        }),
+        signal: AbortSignal.timeout(90_000),
+      },
+    );
+    if (!res.ok) return [];
+    const rows: any[] = await res.json();
+    if (!Array.isArray(rows)) return [];
+
+    const keywordByNorm = new Map(BUSINESS_TYPE_KEYWORDS.map((k) => [norm(k.keyword), k.label]));
+
+    return rows
+      .filter((r) => !!r?.title)
+      .map((r): NearbyBusiness => {
+        const lat = r.location?.lat ?? r.lat;
+        const lng = r.location?.lng ?? r.lng;
+        const categories: string[] = Array.isArray(r.categories) ? r.categories : [];
+        return {
+          name: r.title,
+          category: r.categoryName || categories[0] || keywordByNorm.get(norm(r.searchString)) || "อื่นๆ",
+          categories,
+          address: r.address || r.street || "",
+          lat: typeof lat === "number" ? lat : undefined,
+          lng: typeof lng === "number" ? lng : undefined,
+          rating: typeof r.totalScore === "number" ? r.totalScore : undefined,
+          reviewsCount: typeof r.reviewsCount === "number" ? r.reviewsCount : undefined,
+          mapsUrl: r.url || r.googleMapsUrl || "",
+          matchedKeyword: keywordByNorm.get(norm(r.searchString)) || "อื่นๆ",
+        };
+      });
+  } catch {
+    return []; // timeout / network / parse — never crash the analysis
+  }
 }

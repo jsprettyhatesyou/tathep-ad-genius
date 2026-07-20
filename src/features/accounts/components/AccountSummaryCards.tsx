@@ -21,8 +21,6 @@ export function AccountSummaryCards({ metrics }: { metrics: AccountMetrics }) {
       <Metric label="Revenue YTD" value={formatTHB(metrics.revenueYTD)} accent />
       <Metric label="Open Opportunities" value={`${metrics.openOpportunities} · ${formatTHB(metrics.openPipelineValue)}`} />
       <Metric label="Closed Won" value={String(metrics.closedWonOpportunities)} />
-      <Metric label="Total Campaigns" value={String(metrics.totalCampaigns)} />
-      <Metric label="Last Campaign" value={metrics.lastCampaignDate || "—"} />
       <Metric label="Last Activity" value={metrics.lastActivityAt || "—"} />
       <Metric label="Next Follow-up" value={metrics.nextFollowUpAt || "—"} />
     </div>

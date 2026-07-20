@@ -10,15 +10,11 @@ import {
   rowToScreen,
   rowToDeal,
   rowToActivity,
-  rowToCampaign,
-  rowToInfluencer,
   companyToRow,
   contactToRow,
   dealToRow,
   activityToRow,
   screenToRow,
-  campaignToRow,
-  influencerToRow,
 } from "../db-mappers";
 
 /* ============================ READS ============================ */
@@ -455,92 +451,6 @@ export const deleteScreen = createServerFn({ method: "POST" })
   .inputValidator(z.object({ id: z.string().min(1) }))
   .handler(async ({ data }) => {
     const { error } = await getSupabaseAdmin().from("screens").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
-    return { id: data.id };
-  });
-
-/* ============================ CAMPAIGNS ============================ */
-export const listCampaigns = createServerFn({ method: "GET" }).handler(async () => {
-  const { data, error } = await getSupabaseAdmin()
-    .from("campaigns")
-    .select("*")
-    .order("created_at", { ascending: true });
-  if (error) throw new Error(error.message);
-  return (data ?? []).map(rowToCampaign);
-});
-
-export const createCampaign = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ campaign: z.record(z.string(), z.any()) }))
-  .handler(async ({ data }) => {
-    const { data: row, error } = await getSupabaseAdmin()
-      .from("campaigns")
-      .insert(campaignToRow(data.campaign as any))
-      .select("*")
-      .single();
-    if (error) throw new Error(error.message);
-    return rowToCampaign(row);
-  });
-
-export const updateCampaign = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ id: z.string().min(1), patch: z.record(z.string(), z.any()) }))
-  .handler(async ({ data }) => {
-    const { data: row, error } = await getSupabaseAdmin()
-      .from("campaigns")
-      .update(campaignToRow(data.patch as any))
-      .eq("id", data.id)
-      .select("*")
-      .single();
-    if (error) throw new Error(error.message);
-    return rowToCampaign(row);
-  });
-
-export const deleteCampaign = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ id: z.string().min(1) }))
-  .handler(async ({ data }) => {
-    const { error } = await getSupabaseAdmin().from("campaigns").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
-    return { id: data.id };
-  });
-
-/* ============================ INFLUENCERS ============================ */
-export const listInfluencers = createServerFn({ method: "GET" }).handler(async () => {
-  const { data, error } = await getSupabaseAdmin()
-    .from("influencers")
-    .select("*")
-    .order("followers", { ascending: false });
-  if (error) throw new Error(error.message);
-  return (data ?? []).map(rowToInfluencer);
-});
-
-export const createInfluencer = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ influencer: z.record(z.string(), z.any()) }))
-  .handler(async ({ data }) => {
-    const { data: row, error } = await getSupabaseAdmin()
-      .from("influencers")
-      .insert(influencerToRow(data.influencer as any))
-      .select("*")
-      .single();
-    if (error) throw new Error(error.message);
-    return rowToInfluencer(row);
-  });
-
-export const updateInfluencer = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ id: z.string().min(1), patch: z.record(z.string(), z.any()) }))
-  .handler(async ({ data }) => {
-    const { data: row, error } = await getSupabaseAdmin()
-      .from("influencers")
-      .update(influencerToRow(data.patch as any))
-      .eq("id", data.id)
-      .select("*")
-      .single();
-    if (error) throw new Error(error.message);
-    return rowToInfluencer(row);
-  });
-
-export const deleteInfluencer = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ id: z.string().min(1) }))
-  .handler(async ({ data }) => {
-    const { error } = await getSupabaseAdmin().from("influencers").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { id: data.id };
   });

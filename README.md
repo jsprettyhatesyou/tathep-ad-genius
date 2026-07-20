@@ -1,8 +1,8 @@
 # Tathep Ad Genius — Smart DOOH CRM 👁️
 
 CRM/Sales OS สำหรับแพลตฟอร์ม Smart DOOH ของตาเทพ — จัดการ Leads → Accounts →
-Pipeline, ค้นหา lead ด้วย AI (Google Maps), วางแผน Brand Activations (DOOH +
-Influencer) พร้อม AI insights และผู้ช่วย Sales OS AI
+Pipeline, ค้นหา lead ด้วย AI (Google Maps), วางแผน AI Content Recommendation
+สำหรับ field marketing พร้อม AI insights และผู้ช่วย Sales OS AI
 
 Stack: **TanStack Start** (SSR) · React 19 · Vite · Tailwind v4 · **Supabase**
 (Postgres) · OpenAI (gpt-4o) · Apify (Google Maps Scraper)
@@ -14,7 +14,7 @@ Stack: **TanStack Start** (SSR) · React 19 · Vite · Tailwind v4 · **Supabase
 - **Lead Intelligence** — AI Lead Finder (ดึงชื่อ/เบอร์จริงจาก Google Maps), Import
   Leads (CSV/วาง), Leads + Convert (Lead → Account + Contact + Opportunity)
 - **CRM** — Accounts, Pipeline (drag-drop deals), Contacts, Activities
-- **Campaigns** — Influencers, Billboard Inventory, Brand Activations (campaign OS 9 แท็บ)
+- **Screens** — Billboard Inventory, AI Content Planner (ดึงร้านค้าจริงรอบป้ายจาก Google Maps + สร้าง Content Plan)
 - **Sales OS AI** — ผู้ช่วยถาม-ตอบด้านขวา เห็นข้อมูล pipeline จริง
 
 ---

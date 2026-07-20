@@ -7,10 +7,10 @@ import type {
   Deal,
   Activity,
   Screen,
-  Campaign,
-  Influencer,
   Lead,
   DealDocument,
+  AreaContentAnalysis,
+  ContentPlan,
 } from "./mock-data";
 
 /* ---------- DB row -> app object (read path) ---------- */
@@ -61,6 +61,7 @@ export const rowToCompany = (r: any): Company => ({
   tags: r.tags ?? [],
   summary: r.summary,
   salesStrategy: r.sales_strategy ?? undefined,
+  aiInsights: r.ai_insights ?? undefined,
   clientType: r.client_type ?? r.type ?? undefined,
   agencyType: r.agency_type ?? undefined,
   partnerPotentialScore: r.partner_potential_score ?? undefined,
@@ -162,57 +163,6 @@ export const rowToDocument = (r: any): DealDocument => ({
   createdAt: r.created_at ?? undefined,
 });
 
-export const rowToCampaign = (r: any): Campaign => ({
-  id: r.id,
-  name: r.name,
-  companyId: r.company_id,
-  status: r.status,
-  start: r.start_date,
-  end: r.end_date,
-  budget: Number(r.budget ?? 0),
-  impressions: Number(r.impressions ?? 0),
-  cpm: Number(r.cpm ?? 0),
-  satisfaction: r.satisfaction ?? "—",
-  renewal: r.renewal ?? 0,
-  objective: r.objective ?? undefined,
-  screenIds: r.screen_ids ?? [],
-  influencerIds: r.influencer_ids ?? [],
-  contentPieces: r.content_pieces ?? 0,
-  billboardReach: Number(r.billboard_reach ?? 0),
-  influencerViews: Number(r.influencer_views ?? 0),
-  socialEngagement: Number(r.social_engagement ?? 0),
-  storeVisits: r.store_visits ?? 0,
-  qrScans: r.qr_scans ?? 0,
-  revenue: Number(r.revenue ?? 0),
-  aiInsight: r.ai_insight ?? undefined,
-  renewalReasons: r.renewal_reasons ?? [],
-  owner: r.owner ?? undefined,
-  notes: r.notes ?? undefined,
-  screensPlan: r.screens_plan ?? [],
-  influencersPlan: r.influencers_plan ?? [],
-  deliverables: r.deliverables ?? [],
-  tasks: r.tasks ?? [],
-  campaignType: r.campaign_type ?? "CLIENT_ACTIVATION",
-  performance: r.performance ?? {},
-  influencerPerf: r.influencer_perf ?? [],
-  ads: r.ads ?? [],
-});
-
-export const rowToInfluencer = (r: any): Influencer => ({
-  id: r.id,
-  name: r.name,
-  platform: r.platform,
-  followers: Number(r.followers ?? 0),
-  category: r.category,
-  province: r.province,
-  rateCard: r.rate_card,
-  avgViews: Number(r.avg_views ?? 0),
-  engagementRate: Number(r.engagement_rate ?? 0),
-  contentStatus: r.content_status ?? "Idle",
-  brandsWorkedWith: r.brands_worked_with ?? [],
-  avatar: r.avatar ?? undefined,
-});
-
 export const rowToActivity = (r: any): Activity => ({
   id: r.id,
   type: r.type,
@@ -226,6 +176,36 @@ export const rowToActivity = (r: any): Activity => ({
   nextAction: r.next_action ?? undefined,
   duration: r.duration ?? undefined,
   assignedTo: r.assigned_to,
+});
+
+export const rowToAreaAnalysis = (r: any): AreaContentAnalysis => ({
+  id: r.id,
+  screenIds: r.screen_ids ?? [],
+  screenNames: r.screen_names ?? [],
+  status: r.status ?? "ok",
+  businesses: r.businesses ?? [],
+  areaPriority: r.area_priority ?? [],
+  businessTypeRecommendations: r.business_type_recommendations ?? [],
+  topRecommendation: r.top_recommendation ?? undefined,
+  topRecommendationReasoning: r.top_recommendation_reasoning ?? undefined,
+  createdAt: r.created_at ?? undefined,
+});
+
+export const rowToContentPlan = (r: any): ContentPlan => ({
+  id: r.id,
+  analysisId: r.analysis_id ?? undefined,
+  screenId: r.screen_id ?? undefined,
+  companyId: r.company_id ?? undefined,
+  businessType: r.business_type,
+  businessRef: r.business_ref ?? {},
+  contentObjective: r.content_objective ?? "",
+  contentObjectiveReasoning: r.content_objective_reasoning ?? "",
+  recommendedFormats: r.recommended_formats ?? [],
+  recordingGuide: r.recording_guide ?? { openingHook: "", shotList: [], bRoll: [], interviewQuestions: [], closingScene: "" },
+  suggestedInterviewQuestions: r.suggested_interview_questions ?? [],
+  suggestedHooks: r.suggested_hooks ?? [],
+  reasoning: r.reasoning ?? "",
+  createdAt: r.created_at ?? undefined,
 });
 
 /* ---------- app object -> DB row (write path; omits undefined) ---------- */
@@ -282,6 +262,7 @@ export const companyToRow = (c: Partial<Company>) =>
     tags: c.tags,
     summary: c.summary,
     sales_strategy: c.salesStrategy,
+    ai_insights: c.aiInsights,
     phone: c.phone,
     client_type: c.clientType,
     agency_type: c.agencyType,
@@ -386,59 +367,6 @@ export const documentToRow = (d: Partial<DealDocument>) =>
     sent_at: d.sentAt,
   });
 
-export const campaignToRow = (c: Partial<Campaign>) =>
-  clean({
-    id: c.id,
-    name: c.name,
-    company_id: c.companyId,
-    status: c.status,
-    start_date: c.start,
-    end_date: c.end,
-    budget: c.budget,
-    impressions: c.impressions,
-    cpm: c.cpm,
-    satisfaction: c.satisfaction,
-    renewal: c.renewal,
-    objective: c.objective,
-    screen_ids: c.screenIds,
-    influencer_ids: c.influencerIds,
-    content_pieces: c.contentPieces,
-    billboard_reach: c.billboardReach,
-    influencer_views: c.influencerViews,
-    social_engagement: c.socialEngagement,
-    store_visits: c.storeVisits,
-    qr_scans: c.qrScans,
-    revenue: c.revenue,
-    ai_insight: c.aiInsight,
-    renewal_reasons: c.renewalReasons,
-    owner: c.owner,
-    notes: c.notes,
-    screens_plan: c.screensPlan,
-    influencers_plan: c.influencersPlan,
-    deliverables: c.deliverables,
-    tasks: c.tasks,
-    campaign_type: c.campaignType,
-    performance: c.performance,
-    influencer_perf: c.influencerPerf,
-    ads: c.ads,
-  });
-
-export const influencerToRow = (i: Partial<Influencer>) =>
-  clean({
-    id: i.id,
-    name: i.name,
-    platform: i.platform,
-    followers: i.followers,
-    category: i.category,
-    province: i.province,
-    rate_card: i.rateCard,
-    avg_views: i.avgViews,
-    engagement_rate: i.engagementRate,
-    content_status: i.contentStatus,
-    brands_worked_with: i.brandsWorkedWith,
-    avatar: i.avatar,
-  });
-
 export const activityToRow = (a: Partial<Activity>) =>
   clean({
     id: a.id,
@@ -453,4 +381,34 @@ export const activityToRow = (a: Partial<Activity>) =>
     next_action: a.nextAction,
     duration: a.duration,
     assigned_to: a.assignedTo,
+  });
+
+export const areaAnalysisToRow = (a: Partial<AreaContentAnalysis>) =>
+  clean({
+    id: a.id,
+    screen_ids: a.screenIds,
+    screen_names: a.screenNames,
+    status: a.status,
+    businesses: a.businesses,
+    area_priority: a.areaPriority,
+    business_type_recommendations: a.businessTypeRecommendations,
+    top_recommendation: a.topRecommendation,
+    top_recommendation_reasoning: a.topRecommendationReasoning,
+  });
+
+export const contentPlanToRow = (c: Partial<ContentPlan>) =>
+  clean({
+    id: c.id,
+    analysis_id: c.analysisId,
+    screen_id: c.screenId,
+    company_id: c.companyId,
+    business_type: c.businessType,
+    business_ref: c.businessRef,
+    content_objective: c.contentObjective,
+    content_objective_reasoning: c.contentObjectiveReasoning,
+    recommended_formats: c.recommendedFormats,
+    recording_guide: c.recordingGuide,
+    suggested_interview_questions: c.suggestedInterviewQuestions,
+    suggested_hooks: c.suggestedHooks,
+    reasoning: c.reasoning,
   });
